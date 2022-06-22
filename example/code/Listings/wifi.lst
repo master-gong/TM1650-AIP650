@@ -1,0 +1,402 @@
+C51 COMPILER V9.60.0.0   WIFI                                                              03/20/2022 19:10:42 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE WIFI
+OBJECT MODULE PLACED IN .\Objects\wifi.obj
+COMPILER INVOKED BY: D:\Keil_v5_c51\C51\BIN\C51.EXE App\wifi\wifi.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Bsp;.\App\rtc;.\Bs
+                    -p\tm1650;.\Bsp\delay;.\Bsp\time;.\Bsp\iic;.\App\wifi;.\Bsp\uart;.\App\display;.\App\button;.\App\light_control;.\Bsp\adc
+                    -;.\Bsp\eeprom) DEBUG OBJECTEXTEND PRINT(.\Listings\wifi.lst) TABS(2) OBJECT(.\Objects\wifi.obj)
+
+line level    source
+
+   1          #include "STC8H.h"
+   2          #include "my_type.h"
+   3          #include "wifi.h"
+   4          #include "time.h"
+   5          #include "rtc.h"
+   6          #include "USART.h"
+   7          
+   8          //volatile  uint8_t    uart_interval_count=0;         //÷°º‰∏Ù≈–∂œº∆ ˝
+   9          volatile  uint8_t    uart_receive_count=0;          //uartΩ” ’≥§∂»
+  10          uint8_t   xdata  uart_buff[20+2];
+  11          uint8_t   xdata  rec_data=0;
+  12          uint8_t   xdata  frame_length=0; 
+  13          uint16_t  xdata  wifi_send_count=0;  /*  ˝æ›∑¢ÀÕµπº∆ ± */
+  14          uint8_t xdata wifi_power_flag = 0;
+  15          static uint8_t xdata wifi_on_count = 0;
+  16          
+  17          extern _tm  xdata set_time;           /* …Ë÷√ ±º‰ */
+  18          extern bit B_TX2_Busy; 
+  19          
+  20          void uart_send_data(uint8_t *buff,uint8_t len);
+  21          
+  22          
+  23          //------------ ˝æ›∑¢ÀÕ¥¶¿Ì----------------
+  24          void uart_data_send_handle(_com_send_inst_em  inst)
+  25          {
+  26   1          uint8_t send_buff[20];
+  27   1          uint8_t send_flag = 0;
+  28   1          uint8_t i;
+  29   1          for(i=0;i<20;i++){
+  30   2             send_buff[i] = 0;
+  31   2          }
+  32   1           
+  33   1          send_buff[0] = 0xA5;
+  34   1          send_buff[1] = 0x5A;
+  35   1          if(inst == MSG_SEND_WIFI_BIND){             //∑¢ÀÕ–≈œ¢:WIFI∞Û∂®
+  36   2              send_buff[3] = 0x81;
+  37   2              send_buff[4] = 0x00;
+  38   2              send_flag = 1;
+  39   2          }else if(inst == MSG_SEND_RESUME_FACTORY){  //∑¢ÀÕ–≈œ¢:ª÷∏¥≥ˆ≥ß
+  40   2              send_buff[3] = 0x82;
+  41   2              send_buff[4] = 0x00;
+  42   2              send_flag = 1;
+  43   2          }else if(inst == MSG_SEND_FACTORY_TEST){    //∑¢ÀÕ–≈œ¢:π§≥ß≤‚ ‘
+  44   2              send_buff[3] = 0x8F;
+  45   2              send_buff[4] = 0x00;
+  46   2              send_flag = 1;
+  47   2          }else if(inst == MSG_SEND_GET_TIME){        //∑¢ÀÕ–≈œ¢: ±º‰Õ¨≤Ω
+  48   2              send_buff[3] = 0x83;
+  49   2              send_buff[4] = 0x00;
+  50   2              send_flag = 1;
+  51   2          }
+  52   1          if(send_flag == 1){
+  53   2              for(i=3;i<(5+send_buff[4]);i++){
+C51 COMPILER V9.60.0.0   WIFI                                                              03/20/2022 19:10:42 PAGE 2   
+
+  54   3                  send_buff[2] += send_buff[i];
+  55   3              }
+  56   2              uart_send_data(send_buff,5+send_buff[4]);
+  57   2          }
+  58   1      }
+  59          
+  60          uint8_t hex_to_dec(uint8_t dec)
+  61          {
+  62   1          uint8_t  value;
+  63   1          value = dec/16*10 + dec%16;
+  64   1          
+  65   1          return value;
+  66   1      }
+  67          
+  68          void  uart_rec_data_handle(void)
+  69          {
+  70   1         uint8_t i;
+  71   1         uint8_t  checksum;
+  72   1         uint8_t  data_len;      // ˝æ›≥§∂»
+  73   1         uint8_t  function_code; //π¶ƒ‹¬
+  74   1         //-------÷°Õ∑----------
+  75   1         if((uart_buff[0]!=0x5A)||(uart_buff[1]!=0xA5)){
+  76   2            return;
+  77   2         }
+  78   1         function_code = uart_buff[3];
+  79   1         data_len = uart_buff[4];
+  80   1         if(data_len>20){
+  81   2             return;
+  82   2         }
+  83   1         //------–£—È-----------
+  84   1         checksum = 0;
+  85   1         for(i=3;i<=(4+data_len);i++){
+  86   2             checksum += uart_buff[i];
+  87   2         }
+  88   1         if(checksum != uart_buff[2]){
+  89   2             return;
+  90   2         }
+  91   1         //------π¶ƒ‹¬Î¥¶¿Ì----------
+  92   1         if(function_code == 0x01){  //wifi∞Û∂®”¶¥
+  93   2             com_notice.BIT.WIFI_BIND = false;
+  94   2             work_status = DISP_STATE_WIFI_BIND_WAIT;        //WIFI∞Û∂®µ»¥˝
+  95   2             
+  96   2         }else if(function_code == 0x02){ //ª÷∏¥≥ˆ≥ß”¶¥
+  97   2             com_notice.BIT.RESUME_FACTORY = false;
+  98   2      
+  99   2         }else if(function_code == 0x05){ //≥ß≤‚ƒ£ Ω”¶¥
+ 100   2             com_notice.BIT.TEST_FACTORY = false;
+ 101   2      
+ 102   2         }else if(function_code == 0x03){ // ±º‰ªÒ»°”¶¥
+ 103   2             com_notice.BIT.GET_TIME = false;
+ 104   2      
+ 105   2         }else if(function_code == 0x41){ // ±º‰Õ®÷™
+ 106   2             //-------…Ë÷√ ±º‰----------
+ 107   2             //-------------------------
+ 108   2             wifi_power_off_delay = 0;
+ 109   2             com_notice.BIT.GET_TIME = false;
+ 110   2             //-------------------------
+ 111   2             if(uart_buff[5] == 0x01){
+ 112   3                 set_time.tm_year = 2000 + hex_to_dec(uart_buff[6]);//ƒÍ
+ 113   3                 set_time.tm_mon  = hex_to_dec(uart_buff[7])-1;     //‘¬
+ 114   3                 set_time.tm_mday = hex_to_dec(uart_buff[8]);       //»’
+ 115   3                 set_time.tm_wday = hex_to_dec(uart_buff[9]);        
+C51 COMPILER V9.60.0.0   WIFI                                                              03/20/2022 19:10:42 PAGE 3   
+
+ 116   3                 set_time.tm_hour = hex_to_dec(uart_buff[10]);
+ 117   3                 set_time.tm_min  = hex_to_dec(uart_buff[11]);
+ 118   3                 set_time.tm_sec  = hex_to_dec(uart_buff[12]);
+ 119   3                 pcf8563_set_time(set_time);
+ 120   3                 //second_count = 49;
+ 121   3                 ntp_get_succ_flag = 1;
+ 122   3                 if(work_status == DISP_STATE_WIFI_BIND_WAIT){ //WIFI∞Û∂®µ»¥˝
+ 123   4                     wifi_bind_status = WIFI_BIND_SUCCESS;   //wifi∞Û∂®≥…π¶
+ 124   4                 }else if(work_status == DISP_STATE_FACTORY_TEST_START){ //≥ß≤‚Ω¯––
+ 125   4                     fac_test_status = FAC_TEST_SUCCESS;
+ 126   4                 }else if(work_status == DISP_STATE_NORMAL_DISP_MODE){  //’˝≥£œ‘ æ
+ 127   4                     if(com_notice.BIT.AUTO_GET){
+ 128   5                          com_notice.BIT.AUTO_GET = false;
+ 129   5                     }else{
+ 130   5                          work_status = DISP_STATE_NTP_SUCCESS;  //–£ ±≥…π¶
+ 131   5                     }
+ 132   4                     exit_ntp_state_disp = 0;
+ 133   4                 }else if(work_status == DISP_STATE_POWER_ON){
+ 134   4                     power_on_state = 11; /* ø™ª˙Ω” ’◊¥Ã¨  ∆‰À˚£∫’˝≥£ø™ª˙  11£∫≥…π¶   22£∫ ß∞‹ */
+ 135   4                 }
+ 136   3             }else{
+ 137   3                 ntp_get_succ_flag = 0;
+ 138   3                 //wifi_power_off_delay = 0;
+ 139   3                 if(work_status == DISP_STATE_WIFI_BIND_WAIT){ //WIFI∞Û∂®µ»¥˝
+ 140   4                     wifi_bind_status = WIFI_BIND_FAIL;  // ß∞‹
+ 141   4                 }else if(work_status == DISP_STATE_FACTORY_TEST_START){ //≥ß≤‚Ω¯––
+ 142   4                     fac_test_status = FAC_TEST_FAIL;   // ß∞‹
+ 143   4                 }else if(work_status == DISP_STATE_NORMAL_DISP_MODE){  //’˝≥£œ‘ æ
+ 144   4                     work_status = DISP_STATE_NTP_FAIL;
+ 145   4                     exit_ntp_state_disp = 0;
+ 146   4                     ntp_error_type = 0;              /* 0:NTPªÒ»°≤ª≥…π¶  1:√ª”–∞Û∂®WIFI  2£∫¡¨Ω”¬∑”…∆˜ ß∞‹  0°¢
+             -2–Ë“™÷ÿ–¬¡¨Ω” */
+ 147   4                 }else if(work_status == DISP_STATE_POWER_ON){
+ 148   4                     power_on_state = 22; /* ø™ª˙Ω” ’◊¥Ã¨  ∆‰À˚£∫’˝≥£ø™ª˙  11£∫≥…π¶   22£∫ ß∞‹ */
+ 149   4                 }
+ 150   3      
+ 151   3             }
+ 152   2               
+ 153   2               
+ 154   2         }else if(function_code == 0x42){ //æØ∏ÊÕ®÷™
+ 155   2             ntp_get_succ_flag = 0;
+ 156   2             //-------------------------
+ 157   2             wifi_power_off_delay = 0;
+ 158   2             //-------------------------  
+ 159   2             if(work_status == DISP_STATE_WIFI_BIND_WAIT){ //WIFI∞Û∂®µ»¥˝
+ 160   3                 wifi_bind_status = WIFI_BIND_FAIL;    //wifi∞Û∂® ß∞‹
+ 161   3             }else if(work_status == DISP_STATE_FACTORY_TEST_START){ //≥ß≤‚Ω¯––
+ 162   3                 fac_test_status = FAC_TEST_FAIL;
+ 163   3             }else if(work_status == DISP_STATE_NORMAL_DISP_MODE){  //’˝≥£œ‘ æŒ¬∂»
+ 164   3                 work_status = DISP_STATE_NTP_FAIL;  //–£ ± ß∞‹
+ 165   3                 exit_ntp_state_disp = 0;
+ 166   3             }else if(work_status == DISP_STATE_POWER_ON){ 
+ 167   3                 power_on_state = 22; /* ø™ª˙Ω” ’◊¥Ã¨  ∆‰À˚£∫’˝≥£ø™ª˙  11£∫≥…π¶   22£∫ ß∞‹ */  
+ 168   3             }   
+ 169   2             //-------------------------
+ 170   2             if(uart_buff[5] == 0x01){
+ 171   3                 ntp_error_type = 1;              /* 0:NTPªÒ»°≤ª≥…π¶  1:√ª”–∞Û∂®WIFI  2£∫¡¨Ω”¬∑”…∆˜ ß∞‹  0°¢2–Ë“
+             -™÷ÿ–¬¡¨Ω” */
+ 172   3             }else{
+ 173   3                 ntp_error_type = 2;           
+ 174   3             }
+ 175   2             
+C51 COMPILER V9.60.0.0   WIFI                                                              03/20/2022 19:10:42 PAGE 4   
+
+ 176   2         }else if(function_code == 0x43){ //WIFI∞Û∂®◊¥Ã¨
+ 177   2             if(work_status == DISP_STATE_WIFI_BIND_WAIT){ //WIFI∞Û∂®µ»¥˝
+ 178   3                if(uart_buff[5] == 0x01){     //“— ’µΩWiFi’Àªß√‹¬Î
+ 179   4                    wifi_bind_status = WIFI_BIND_REC_SSID;        
+ 180   4                }else if(uart_buff[5] == 0x02){ //¬∑”…¡¨Ω”≥…π¶
+ 181   4                    wifi_bind_status = WIFI_BIND_WIFI_LINK_OK;           
+ 182   4                }
+ 183   3             }
+ 184   2         }  
+ 185   1      }
+ 186          
+ 187          
+ 188          
+ 189          
+ 190          
+ 191          void uart_data_init(void)
+ 192          {
+ 193   1          uint8_t  i;
+ 194   1          ucFlag.BIT.UART_REC = false; //÷°º‰∏Ùº∆ ˝flag
+ 195   1          ucFlag.BIT.UART_REC_OK = false; //
+ 196   1          //uart_interval_count = 0; //÷°º‰∏Ù≈–∂œº∆ ˝
+ 197   1          uart_receive_count = 0;  //uart Ω” ’≥§∂»
+ 198   1      
+ 199   1          for(i=0;i<20;i++){
+ 200   2             uart_buff[i] = 0;
+ 201   2          }
+ 202   1      }
+ 203          
+ 204          
+ 205          void wifi_handle(void)
+ 206          {
+ 207   1        //---------WIFIµÁ‘¥øÿ÷∆----------------
+ 208   1        if(wifi_power_off_delay > 0){
+ 209   2           wifi_power_off_delay --;
+ 210   2           if(wifi_power_flag == 0){
+ 211   3              wifi_power_flag = 1;
+ 212   3              wifi_send_count = 100; //1s
+ 213   3              wifi_on_count = 10; //100ms
+ 214   3              WIFI_POWER_ON;  
+ 215   3           }else{
+ 216   3             if(wifi_on_count > 0){
+ 217   4                 wifi_on_count--;
+ 218   4             }else{
+ 219   4                 UART2_config();         //¥Æø⁄≥ı ºªØ 
+ 220   4             }
+ 221   3           }
+ 222   2           
+ 223   2           if(wifi_power_off_delay == 0){
+ 224   3               if((work_status == DISP_STATE_WIFI_BIND_START)||
+ 225   3                  (work_status == DISP_STATE_WIFI_BIND_WAIT)){
+ 226   4                   wifi_bind_status = WIFI_BIND_FAIL; //wifi∞Û∂® ß∞‹
+ 227   4                   
+ 228   4               }else if(work_status == DISP_STATE_FACTORY_TEST_START){
+ 229   4                   fac_test_status = FAC_TEST_FAIL;
+ 230   4                  
+ 231   4               }
+ 232   3           }
+ 233   2        }else{
+ 234   2      
+ 235   2           if(wifi_power_flag == 1){
+ 236   3              wifi_power_flag = 0;
+ 237   3              UART2_DeInit();
+C51 COMPILER V9.60.0.0   WIFI                                                              03/20/2022 19:10:42 PAGE 5   
+
+ 238   3              wifi_send_count = 0;
+ 239   3              com_notice.BYTE = 0;
+ 240   3           }else{
+ 241   3              WIFI_POWER_OFF;
+ 242   3           }
+ 243   2        }
+ 244   1        //--------- ’µΩµƒ ˝æ›¥¶¿Ì-------------
+ 245   1        if(ucFlag.BIT.UART_REC_OK){
+ 246   2           uart_rec_data_handle();
+ 247   2           uart_data_init();
+ 248   2        }
+ 249   1        
+ 250   1        //±£◊o
+ 251   1        if(wifi_power_flag == 0){
+ 252   2           return;
+ 253   2        }
+ 254   1        //---------send wifi bind-----------
+ 255   1        if(com_notice.BIT.WIFI_BIND){              //WIFI∞Û∂®
+ 256   2            if(wifi_send_count == 0){
+ 257   3               uart_data_send_handle(MSG_SEND_WIFI_BIND);
+ 258   3               wifi_send_count = 300;
+ 259   3            }
+ 260   2        }else if(com_notice.BIT.RESUME_FACTORY){  //ª÷∏¥≥ˆ≥ß
+ 261   2            if(wifi_send_count == 0){
+ 262   3               uart_data_send_handle(MSG_SEND_RESUME_FACTORY);
+ 263   3               wifi_send_count = 300;
+ 264   3            }
+ 265   2        }else if(com_notice.BIT.TEST_FACTORY){     //≥ß≤‚ƒ£ Ω
+ 266   2            if(wifi_send_count == 0){
+ 267   3               uart_data_send_handle(MSG_SEND_FACTORY_TEST);
+ 268   3               wifi_send_count = 300;
+ 269   3            }     
+ 270   2        }else if(com_notice.BIT.GET_TIME){         // ±º‰ªÒ»°
+ 271   2            if(wifi_send_count == 0){
+ 272   3               uart_data_send_handle(MSG_SEND_GET_TIME);
+ 273   3               wifi_send_count = 300;
+ 274   3            }   
+ 275   2        }
+ 276   1        if(wifi_send_count>0){
+ 277   2           wifi_send_count--;
+ 278   2        }
+ 279   1      }
+ 280          
+ 281          //#pragma vector= UART1_R_OR_vector
+ 282          //__interrupt void UART1_R_OR_IRQHandler(void)
+ 283          //{ 
+ 284          //     rec_data = UART1_DR;
+ 285          //     //uart_buff[uart_receive_count] = UART1_DR;
+ 286          //     if(uart_receive_count<20){
+ 287          //        uart_buff[uart_receive_count] = rec_data;
+ 288          //        uart_receive_count++;
+ 289          //     }else{
+ 290          //        ucFlag.BIT.UART_REC_OK = true;
+ 291          //     }
+ 292          //     ucFlag.BIT.UART_REC = true;   //÷°º‰∏Ùº∆ ˝flag
+ 293          //     uart_interval_count = 0;      //÷°º‰∏Ù≈–∂œº∆ ˝ 
+ 294          //     
+ 295          //     UART1_SR&=~BIT(5);//«Â±Í÷æŒª     
+ 296          //}
+ 297          
+ 298          
+ 299          //void UART2_int (void) interrupt 8
+C51 COMPILER V9.60.0.0   WIFI                                                              03/20/2022 19:10:42 PAGE 6   
+
+ 300          //{
+ 301          //    if((S2CON & 1) != 0)
+ 302          //    {
+ 303          //       S2CON &= ~1;    //Clear Rx flag
+ 304          //       rec_data = S2BUF;
+ 305          //       //uart_buff[uart_receive_count] = UART1_DR;
+ 306          //       if(uart_receive_count<20){
+ 307          //           uart_buff[uart_receive_count] = rec_data;
+ 308          //           uart_receive_count++;
+ 309          //       }else{
+ 310          //           ucFlag.BIT.UART_REC_OK = true;
+ 311          //       }
+ 312          //       ucFlag.BIT.UART_REC = true;   //÷°º‰∏Ùº∆ ˝flag
+ 313          //       uart_interval_count = 0;      //÷°º‰∏Ù≈–∂œº∆ ˝ 
+ 314          //       
+ 315          //    }
+ 316          
+ 317          //    if((S2CON & 2) != 0)
+ 318          //    {
+ 319          //        S2CON &= ~2;    //Clear Tx flag
+ 320          //        B_TX2_Busy = 0;
+ 321          //    }
+ 322          
+ 323          //}
+ 324          
+ 325          void UART2_int (void) interrupt 8
+ 326          {
+ 327   1          if((S2CON & 1) != 0)
+ 328   1          {
+ 329   2             S2CON &= ~1;    //Clear Rx flag
+ 330   2             //rec_data = S2BUF;
+ 331   2             if(uart_receive_count >20){
+ 332   3                 uart_receive_count = 0;
+ 333   3             }
+ 334   2             uart_buff[uart_receive_count] = S2BUF;
+ 335   2             uart_receive_count++;
+ 336   2             switch(uart_receive_count){
+ 337   3                 case 1:
+ 338   3                     if(uart_buff[0]!=0x5A){
+ 339   4                        uart_receive_count=0;
+ 340   4                     }
+ 341   3                 break;
+ 342   3                 case  2:
+ 343   3                     if(uart_buff[1]!=0xA5){
+ 344   4                        uart_receive_count=0;
+ 345   4                     }
+ 346   3                 break;
+ 347   3                 case  5:
+ 348   3                     frame_length = uart_buff[4]; 
+ 349   3                 break;
+ 350   3             }
+ 351   2             if((uart_receive_count>=5)&&(uart_receive_count == (frame_length+5))){
+ 352   3                 ucFlag.BIT.UART_REC_OK = true;
+ 353   3             }
+ 354   2          }
+ 355   1      
+ 356   1          if((S2CON & 2) != 0)
+ 357   1          {
+ 358   2              S2CON &= ~2;    //Clear Tx flag
+ 359   2              B_TX2_Busy = 0;
+ 360   2          }
+ 361   1      
+C51 COMPILER V9.60.0.0   WIFI                                                              03/20/2022 19:10:42 PAGE 7   
+
+ 362   1      }
+ 363          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1264    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     28    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      1      21
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

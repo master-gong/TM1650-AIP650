@@ -1,0 +1,139 @@
+C51 COMPILER V9.60.0.0   DISP_IIC                                                          06/22/2022 19:42:54 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE DISP_IIC
+OBJECT MODULE PLACED IN .\Objects\disp_iic.obj
+COMPILER INVOKED BY: D:\Keil_v5_c51\C51\BIN\C51.EXE Bsp\disp_i2c\disp_iic.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Bsp;.\Bsp\
+                    -disp_i2c;.\Bsp\tm1650) DEBUG OBJECTEXTEND PRINT(.\Listings\disp_iic.lst) TABS(2) OBJECT(.\Objects\disp_iic.obj)
+
+line level    source
+
+   1          #include "disp_iic.h"
+   2          
+   3          #include "intrins.h"
+   4          
+   5          
+   6          
+   7          /***********************
+   8          函数功能：us延时
+   9          输入参数：无
+  10          输出参数：无
+  11          备    注：粗略延时，不准
+  12          ***********************/
+  13          static void delay_us(uint8_t z)
+  14          { 
+  15   1          while(z--){
+  16   2              _nop_(); 
+  17   2          }
+  18   1      }
+  19          
+  20          /***********************
+  21          函数功能：ms延时
+  22          输入参数：无
+  23          输出参数：无
+  24          备    注：粗略延时，不准
+  25          ***********************/
+  26          static void delay_ms(unsigned int time)
+  27          {
+  28   1          unsigned int i;
+  29   1          while(time--)  
+  30   1            for(i=100;i>0;i--)
+  31   1              delay_us(1); 
+  32   1      }
+  33          
+  34          
+  35          static void iic_start(void)
+  36          {
+  37   1          DISP_SCL_CRL;
+  38   1          DISP_SDA_SET; 
+  39   1          delay_us(4);
+  40   1          DISP_SCL_SET;    
+  41   1          delay_us(40);     
+  42   1          DISP_SDA_CRL;         
+  43   1          delay_us(4);         
+  44   1          DISP_SCL_CRL;    
+  45   1      }
+  46          
+  47          static void iic_stop(void)
+  48          {
+  49   1          DISP_SCL_CRL;
+  50   1          DISP_SCL_CRL;
+  51   1          delay_us(2);
+  52   1          DISP_SDA_CRL;
+  53   1          delay_us(40);
+  54   1          DISP_SCL_SET;
+C51 COMPILER V9.60.0.0   DISP_IIC                                                          06/22/2022 19:42:54 PAGE 2   
+
+  55   1          delay_us(10);
+  56   1          DISP_SDA_SET;
+  57   1          delay_us(40);
+  58   1      }
+  59          
+  60          static void iic_ack(void)
+  61          {
+  62   1          DISP_SCL_CRL;
+  63   1          DISP_SDA_INPUT();
+  64   1          delay_us(10);
+  65   1          DISP_SCL_SET;
+  66   1          delay_us(40);
+  67   1          DISP_SCL_CRL;
+  68   1          delay_us(10);
+  69   1          DISP_SDA_OUT();
+  70   1      }
+  71          
+  72          static void iic_write_byte(char txd)
+  73          {
+  74   1          uint8_t i;
+  75   1          DISP_SDA_OUT();
+  76   1          for(i = 0;i < 8; i ++){
+  77   2              delay_us(2);
+  78   2              if((txd&0x80)>>7){ //0x80  1000 0000
+  79   3                  DISP_SDA_SET;
+  80   3              }else{
+  81   3                  DISP_SDA_CRL;
+  82   3              }
+  83   2              txd<<=1; 
+  84   2              delay_us(20);   
+  85   2              DISP_SCL_SET;
+  86   2              delay_us(45);  
+  87   2              DISP_SCL_CRL; 
+  88   2              delay_us(20); 
+  89   2          }
+  90   1      }
+  91           
+  92          void display_iic_set(char add,char dat) 
+  93          {
+  94   1          iic_start();
+  95   1          iic_write_byte(add); 
+  96   1          iic_ack();
+  97   1          iic_write_byte(dat);
+  98   1          iic_ack();
+  99   1          iic_stop();
+ 100   1      }
+ 101          
+ 102          void init_display_iic_gpio(void)
+ 103          {
+ 104   1      
+ 105   1          DISP_SDA_OUT();
+ 106   1          DISP_SCL_OUT(); 
+ 107   1          DISP_SCL_SET;
+ 108   1          DISP_SDA_SET;
+ 109   1          delay_ms(2);
+ 110   1      }
+ 111          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    262    ----
+   CONSTANT SIZE    =   ----    ----
+C51 COMPILER V9.60.0.0   DISP_IIC                                                          06/22/2022 19:42:54 PAGE 3   
+
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

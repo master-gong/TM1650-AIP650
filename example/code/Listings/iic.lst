@@ -1,0 +1,180 @@
+C51 COMPILER V9.60.0.0   IIC                                                               03/20/2022 19:10:42 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE IIC
+OBJECT MODULE PLACED IN .\Objects\iic.obj
+COMPILER INVOKED BY: D:\Keil_v5_c51\C51\BIN\C51.EXE Bsp\iic\iic.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Bsp;.\App\rtc;.\Bsp\
+                    -tm1650;.\Bsp\delay;.\Bsp\time;.\Bsp\iic;.\App\wifi;.\Bsp\uart;.\App\display;.\App\button;.\App\light_control;.\Bsp\adc;.
+                    -\Bsp\eeprom) DEBUG OBJECTEXTEND PRINT(.\Listings\iic.lst) TABS(2) OBJECT(.\Objects\iic.obj)
+
+line level    source
+
+   1          #include "STC8H.h"
+   2          #include "iic.h"
+   3          
+   4          void Wait()
+   5          {
+   6   1          while (!(I2CMSST & 0x40));
+   7   1          I2CMSST &= ~0x40;
+   8   1      }
+   9          
+  10          void Start()
+  11          {
+  12   1          I2CMSCR = 0x01;                         //发送START命令
+  13   1          Wait();
+  14   1      }
+  15          
+  16          void SendData(char dat)
+  17          {
+  18   1          I2CTXD = dat;                           //写数据到数据缓冲区
+  19   1          I2CMSCR = 0x02;                         //发送SEND命令
+  20   1          Wait();
+  21   1      }
+  22          
+  23          void RecvACK()
+  24          {
+  25   1          I2CMSCR = 0x03;                         //发送读ACK命令
+  26   1          Wait();
+  27   1      }
+  28          
+  29          char RecvData()
+  30          {
+  31   1          I2CMSCR = 0x04;                         //发送RECV命令
+  32   1          Wait();
+  33   1          return I2CRXD;
+  34   1      }
+  35          
+  36          void SendACK()
+  37          {
+  38   1          I2CMSST = 0x00;                         //设置ACK信号
+  39   1          I2CMSCR = 0x05;                         //发送ACK命令
+  40   1          Wait();
+  41   1      }
+  42          
+  43          void SendNAK()
+  44          {
+  45   1          I2CMSST = 0x01;                         //设置NAK信号
+  46   1          I2CMSCR = 0x05;                         //发送ACK命令
+  47   1          Wait();
+  48   1      }
+  49          
+  50          void Stop()
+  51          {
+  52   1          I2CMSCR = 0x06;                         //发送STOP命令
+  53   1          Wait();
+C51 COMPILER V9.60.0.0   IIC                                                               03/20/2022 19:10:42 PAGE 2   
+
+  54   1      }
+  55          
+  56          //static void WriteNbyte(u8 addr, u8 *p, u8 number)  /*  WordAddress,First Data Address,Byte lenth   */
+  57          //{
+  58          //    Start();                                //发送起始命令
+  59          //    SendData(SLAW);                         //发送设备地址+写命令
+  60          //    RecvACK();
+  61          //    SendData(addr);                         //发送存储地址
+  62          //    RecvACK();
+  63          //    do
+  64          //    {
+  65          //        SendData(*p++);
+  66          //        RecvACK();
+  67          //    }
+  68          //    while(--number);
+  69          //    Stop();                                 //发送停止命令
+  70          //}
+  71          
+  72          //static void ReadNbyte(u8 addr, u8 *p, u8 number)   /*  WordAddress,First Data Address,Byte lenth   */
+  73          //{
+  74          //    Start();                                //发送起始命令
+  75          //    SendData(SLAW);                         //发送设备地址+写命令
+  76          //    RecvACK();
+  77          //    SendData(addr);                         //发送存储地址
+  78          //    RecvACK();
+  79          //    Start();                                //发送起始命令
+  80          //    SendData(SLAR);                         //发送设备地址+读命令
+  81          //    RecvACK();
+  82          //    do
+  83          //    {
+  84          //        *p = RecvData();
+  85          //        p++;
+  86          //        if(number != 1) SendACK();          //send ACK
+  87          //    }
+  88          //    while(--number);
+  89          //    SendNAK();                              //send no ACK 
+  90          //    Stop();                                 //发送停止命令
+  91          //}
+  92          
+  93          
+  94          ////PB4,PB5 悬浮输入
+  95          //static void IIC_GPIO_Init(void)
+  96          //{
+  97          //    PB_DDR &= 0xcf;
+  98          //    PB_CR1 &= 0xcf;
+  99          //    PB_CR2 &= 0xcf;
+ 100          //    
+ 101          //}
+ 102          
+ 103          
+ 104          void iic_master_init(void)
+ 105          {
+ 106   1          P1M1|=0x20; P1M0|=0x20;
+ 107   1          P1M1|=0x10; P1M0|=0x10;
+ 108   1          P_SW2 = 0x80; //SCL/P1.5, SDA/P1.4
+ 109   1          I2CCFG = 0xF5; //100K
+ 110   1          I2CMSST = 0x00;
+ 111   1      }
+ 112          
+ 113          
+ 114          //注意，长度不能大于16
+ 115          void iic_write_data(uint8_t subAdd, uint8_t* dataBuff,uint8_t length)
+C51 COMPILER V9.60.0.0   IIC                                                               03/20/2022 19:10:42 PAGE 3   
+
+ 116          {
+ 117   1          Start();                                //发送起始命令
+ 118   1          SendData(subAdd & 0xfe);                         //发送设备地址+写命令
+ 119   1          RecvACK();
+ 120   1          do
+ 121   1          {
+ 122   2              SendData(*dataBuff++);
+ 123   2              RecvACK();
+ 124   2          }
+ 125   1          while(--length);
+ 126   1          Stop();                                 //发送停止命令
+ 127   1      }
+ 128          
+ 129          //注意，长度不能大于16
+ 130          void iic_read_data(uint8_t subAdd,uint8_t regAdd,uint8_t* dataBuff,uint8_t length)
+ 131          {
+ 132   1         Start();                                 //发送起始命令
+ 133   1         SendData(subAdd & 0xfe);                         //发送设备地址+写命令
+ 134   1         RecvACK();
+ 135   1         SendData(regAdd);                         //发送设备地址+写命令
+ 136   1         RecvACK();
+ 137   1         //-------------
+ 138   1         Start();                                //发送起始命令
+ 139   1         SendData(subAdd);                         //发送设备地址+读命令
+ 140   1         RecvACK();
+ 141   1         do
+ 142   1         {
+ 143   2              *dataBuff = RecvData();
+ 144   2              dataBuff++;
+ 145   2              if(length != 1) SendACK();          //send ACK
+ 146   2         }
+ 147   1         while(--length);
+ 148   1         SendNAK();                              //send no ACK  
+ 149   1         Stop();                                 //发送停止命令
+ 150   1      
+ 151   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    229    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      11
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

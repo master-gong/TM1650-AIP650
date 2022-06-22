@@ -1,0 +1,73 @@
+C51 COMPILER V9.60.0.0   LIGHT_CONTROL                                                     03/20/2022 19:10:42 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE LIGHT_CONTROL
+OBJECT MODULE PLACED IN .\Objects\light_control.obj
+COMPILER INVOKED BY: D:\Keil_v5_c51\C51\BIN\C51.EXE App\light_control\light_control.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\
+                    -Bsp;.\App\rtc;.\Bsp\tm1650;.\Bsp\delay;.\Bsp\time;.\Bsp\iic;.\App\wifi;.\Bsp\uart;.\App\display;.\App\button;.\App\light
+                    -_control;.\Bsp\adc;.\Bsp\eeprom) DEBUG OBJECTEXTEND PRINT(.\Listings\light_control.lst) TABS(2) OBJECT(.\Objects\light_c
+                    -ontrol.obj)
+
+line level    source
+
+   1          
+   2          #include "STC8H.h"
+   3          #include "my_type.h"
+   4          #include "tm1650.h"
+   5          
+   6          extern _disp_buff_st    xdata   disp_data;              /* ÏÔÊ¾Êý¾Ý */
+   7          
+   8          
+   9          
+  10          void linght_control_handle(void)
+  11          {
+  12   1        uint32_t  level;
+  13   1        uint32_t  offset;
+  14   1      
+  15   1        if(linght_control_delay > 0){
+  16   2            linght_control_delay--;
+  17   2            level = 2;
+  18   2      
+  19   2        }else{
+  20   2            if(linght_level_set_max < linght_level_set_min){
+  21   3              offset = 0;
+  22   3            }else{
+  23   3              offset = linght_level_set_max -  linght_level_set_min;
+  24   3            }
+  25   2      
+  26   2            if(light_control_adc_value < 200){
+  27   3                level = linght_level_set_min;
+  28   3      
+  29   3            }else{
+  30   3                level = light_control_adc_value-200;
+  31   3                level = level*offset/(990-200) + linght_level_set_min;
+  32   3                if(level > linght_level_set_max)   level=linght_level_set_max;
+  33   3                
+  34   3            }
+  35   2      
+  36   2        }
+  37   1      
+  38   1        linght_level = (uint8_t)level;
+  39   1        if(linght_level > 7){
+  40   2            disp_data.brightness = 7;
+  41   2        }else{
+  42   2            disp_data.brightness = linght_level;
+  43   2        }
+  44   1      }
+  45          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    247    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+C51 COMPILER V9.60.0.0   LIGHT_CONTROL                                                     03/20/2022 19:10:42 PAGE 2   
+
+   DATA SIZE        =   ----       8
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

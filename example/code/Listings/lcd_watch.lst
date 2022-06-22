@@ -1,0 +1,283 @@
+C51 COMPILER V9.60.0.0   LCD_WATCH                                                         06/22/2022 17:23:21 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE LCD_WATCH
+OBJECT MODULE PLACED IN .\Objects\lcd_watch.obj
+COMPILER INVOKED BY: D:\Keil_v5_c51\C51\BIN\C51.EXE Bsp\pcf8576c\lcd_watch.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Bsp;.\App
+                    -\rtc;.\Bsp\tm1650;.\Bsp\delay;.\Bsp\time;.\Bsp\iic;.\App\wifi;.\Bsp\uart;.\App\display;.\App\button;.\App\light_control;
+                    -.\Bsp\adc;.\Bsp\eeprom;.\Bsp\disp_i2c\include;.\Bsp\tm1650\include;.\Bsp\tm1637\include;.\Bsp\pcf8576c\include) DEBUG OB
+                    -JECTEXTEND PRINT(.\Listings\lcd_watch.lst) TABS(2) OBJECT(.\Objects\lcd_watch.obj)
+
+line level    source
+
+   1          /*
+   2           * lcd_watch.c
+   3           *
+   4           *  Created on: 2022年4月21日
+   5           *      Author: mastergong
+   6           */
+   7          #include "lcd_watch.h"
+   8          #include "pcf8576c.h"
+   9          
+  10          
+  11          static char xdata dispBuff[20]; //显存
+  12          //第1行码表
+  13          const char code seg_code_tab1[]={
+  14          0x5f,  /* 0:  0 */
+  15          0x50,  /* 1:  1 */
+  16          0x3d,  /* 2:  2 */
+  17          0x79,  /* 3:  3 */
+  18          0x72,  /* 4:  4 */
+  19          0x6b,  /* 5:  5 */
+  20          0x6f,  /* 6:  6 */
+  21          0x51,  /* 7:  7 */
+  22          0x7f,  /* 8:  8*/
+  23          0x7b,  /* 9:  9 */
+  24          0x77,  /* 10: A */
+  25          0x6e,  /* 11: B */
+  26          0x0f,  /* 12: C */
+  27          0x7c,  /* 13: d */
+  28          0x2f,  /* 14: E */
+  29          0x27,  /* 15: F */
+  30          0x76,  /* 16: H */
+  31          0x0E,  /* 17: L */
+  32          0x24,  /* 18: r */
+  33          0x37,  /* 19：p */
+  34          0x57,  /* 20：N */
+  35          0x20,  /* 21: - 中- */
+  36          0x01,  /* 22：- 上- */
+  37          0x08,  /* 23：_ 下- */
+  38          0x33,  /* 24：o 上o */
+  39          0x6C,  /* 25：o 下o */
+  40          0x5E,  /* 26: U */
+  41          0x2C,  /* 27：c */
+  42          0x3B,  /* 28：上o 下-*/
+  43          0x6D,  /* 29：下o 上-*/
+  44          0x00,  /* 30：  */
+  45          };
+  46          //第2、3行码表
+  47          const char code seg_code_tab2[]={
+  48          0x5f,  /* 0:  0 */
+  49          0x06,  /* 1:  1 */
+  50          0x3d,  /* 2:  2 */
+  51          0x2f,  /* 3:  3 */
+  52          0x66,  /* 4:  4 */
+C51 COMPILER V9.60.0.0   LCD_WATCH                                                         06/22/2022 17:23:21 PAGE 2   
+
+  53          0x6b,  /* 5:  5 */
+  54          0x7b,  /* 6:  6 */
+  55          0x0e,  /* 7:  7 */
+  56          0x7f,  /* 8:  8*/
+  57          0x6f,  /* 9:  9 */
+  58          0x7e,  /* 10: A */
+  59          0x73,  /* 11: B */
+  60          0x59,  /* 12: C */
+  61          0x37,  /* 13: d */
+  62          0x79,  /* 14: E */
+  63          0x78,  /* 15: F */
+  64          0x76,  /* 16: H */
+  65          0x51,  /* 17: L */
+  66          0x30,  /* 18: r */
+  67          0x7C,  /* 19：p */
+  68          0x5E,  /* 20：N */
+  69          0x20,  /* 21: - 中- */
+  70          0x08,  /* 22：- 上- */
+  71          0x01,  /* 23：_ 下- */
+  72          0x6C,  /* 24：o 上o */
+  73          0x33,  /* 25：o 下o */
+  74          0x57,  /* 26: U */
+  75          0x31,  /* 27：c */
+  76          0x6D,  /* 28：上o 下-*/
+  77          0x3B,  /* 29：下o 上-*/
+  78          0x00,  /* 30：  */
+  79          };
+  80          
+  81          // #define  ICON_MONTH  0//月
+  82          // #define  ICON_DAY    1//日
+  83          // #define  ICON_FACE   2//笑脸
+  84          // #define  ICON_COLON  3//冒号
+  85          // #define  ICON_FLOWER 4//小花
+  86          // #define  ICON_STEP   5//步
+  87          const _icon_tab_st code st_icon_tab[6]={
+  88              {2 , 0x01},  //月
+  89              {0 , 0x10},  //日
+  90              {0 , 0x80},  //笑脸
+  91              {7 , 0x80},  //冒号
+  92              {11, 0x10},  //小花
+  93              {16, 0x01},  //步
+  94          };
+  95          
+  96          #define  ICON_DISP_ON(x)   dispBuff[st_icon_tab[x].num]|=st_icon_tab[x].codeSeg
+  97          #define  ICON_DISP_OFF(x)  dispBuff[st_icon_tab[x].num]&=~st_icon_tab[x].codeSeg
+  98          
+  99          
+ 100          
+ 101          
+ 102          /*********************************
+ 103          函数名称：lcd_display_digit
+ 104          功能：LCD屏幕显示数字
+ 105          输入：序号，显示数字
+ 106          输出：无
+ 107          *********************************/
+ 108          void lcd_display_digit(unsigned char seg,unsigned char num)
+ 109          {
+ 110   1        if(seg>14){
+ 111   2              return;
+ 112   2          }
+ 113   1        switch(seg){
+ 114   2          //第一行
+C51 COMPILER V9.60.0.0   LCD_WATCH                                                         06/22/2022 17:23:21 PAGE 3   
+
+ 115   2          case 0:
+ 116   2          case 1:
+ 117   2              dispBuff[4-seg]&=0x80;
+ 118   2              dispBuff[4-seg]|=seg_code_tab1[num];
+ 119   2              break;
+ 120   2          case 2:
+ 121   2          case 3:
+ 122   2              dispBuff[4-seg]&=0x0f;
+ 123   2              dispBuff[3-seg]&=0xf8;
+ 124   2              dispBuff[4-seg]|=seg_code_tab1[num]<<4;
+ 125   2              dispBuff[3-seg]|=seg_code_tab1[num]>>4;
+ 126   2              break;
+ 127   2          //第二行
+ 128   2          case 4:
+ 129   2          case 5:
+ 130   2          case 6:
+ 131   2          case 7:
+ 132   2          //第三行
+ 133   2          case 8:
+ 134   2          case 9:
+ 135   2              dispBuff[seg+1]&=0x80;
+ 136   2              dispBuff[seg+1]|=seg_code_tab2[num];
+ 137   2              break;
+ 138   2          case 10:
+ 139   2          case 11:
+ 140   2          case 12:
+ 141   2          case 13:
+ 142   2          case 14:
+ 143   2              dispBuff[seg+1]&=0xf8;
+ 144   2              dispBuff[seg+2]&=0x0f;
+ 145   2              dispBuff[seg+1]|=seg_code_tab2[num]>>4;
+ 146   2              dispBuff[seg+2]|=seg_code_tab2[num]<<4;
+ 147   2              break;
+ 148   2        }
+ 149   1      }
+ 150          
+ 151          /*********************************
+ 152          函数名称：lcd_display_refresh
+ 153          功能：LCD刷新
+ 154          输入：无
+ 155          输出：无
+ 156          *********************************/
+ 157          static void lcd_display_refresh(void)
+ 158          {
+ 159   1         uint8_t i; 
+ 160   1         for(i=1;i<9;i++){
+ 161   2            display_iic_write_data2(LCD_ADDR, 0, dispBuff, 19, i);//同步显存
+ 162   2         } 
+ 163   1      }
+ 164          
+ 165          
+ 166          
+ 167          /*********************************
+ 168          函数名称：lcd_display_icon_on
+ 169          功能：LCD图标显示开
+ 170          输入：图标编号定义
+ 171          输出：无
+ 172          *********************************/
+ 173          static void lcd_display_icon_on(unsigned char icon)
+ 174          {
+ 175   1          if(icon > 5){
+ 176   2              return;
+C51 COMPILER V9.60.0.0   LCD_WATCH                                                         06/22/2022 17:23:21 PAGE 4   
+
+ 177   2          }
+ 178   1          ICON_DISP_ON(icon);
+ 179   1      }
+ 180          
+ 181          /*********************************
+ 182          函数名称：lcd_display_icon_off
+ 183          功能：LCD图标显示关
+ 184          输入：图标编号定义
+ 185          输出：无
+ 186          *********************************/
+ 187          static void lcd_display_icon_off(unsigned char icon)
+ 188          {
+ 189   1          if(icon > 5){
+ 190   2              return;
+ 191   2          }
+ 192   1          ICON_DISP_OFF(icon);
+ 193   1      }
+ 194          
+ 195          
+ 196          //显示接口 
+ 197          //LCD 0.9寸 液晶屏
+ 198          void drive_lcd_09inch(_disp_buff_st info)
+ 199          {
+ 200   1          uint8_t i;
+ 201   1      
+ 202   1          for(i=0;i<20;i++){
+ 203   2              dispBuff[i] = 0;
+ 204   2          }
+ 205   1      
+ 206   1          lcd_pcf8576_init();
+ 207   1          
+ 208   1          
+ 209   1      
+ 210   1          // if(info.power == 0xA5){ //关闭显示
+ 211   1          //    lcd_pcf8576_off();
+ 212   1          // }else{
+ 213   1          //    lcd_pcf8576_on();
+ 214   1          // }
+ 215   1      
+ 216   1          lcd_display_digit(0, info.grid_data[4]);
+ 217   1          lcd_display_digit(1, info.grid_data[5]);
+ 218   1          lcd_display_digit(2, info.grid_data[6]);
+ 219   1          lcd_display_digit(3, info.grid_data[7]);
+ 220   1          lcd_display_digit(4, info.grid_data[0]);
+ 221   1          lcd_display_digit(5, info.grid_data[1]);
+ 222   1          lcd_display_digit(6, info.grid_data[2]);
+ 223   1          lcd_display_digit(7, info.grid_data[3]);
+ 224   1          lcd_display_digit(8, info.grid_data[8]);
+ 225   1          lcd_display_digit(9, info.grid_data[9]);
+ 226   1          lcd_display_digit(10, info.grid_data[10]);
+ 227   1          lcd_display_digit(11, info.grid_data[11]);
+ 228   1          lcd_display_digit(12, info.grid_data[12]);
+ 229   1          lcd_display_digit(13, info.grid_data[13]);
+ 230   1          lcd_display_digit(14, info.grid_data[14]);
+ 231   1      
+ 232   1          //-------月日标志-----------
+ 233   1          if(info.iconMonth){
+ 234   2              lcd_display_icon_on(ICON_MONTH);
+ 235   2              lcd_display_icon_on(ICON_DAY);
+ 236   2          }
+ 237   1      
+ 238   1         //-------联网成功-----------
+C51 COMPILER V9.60.0.0   LCD_WATCH                                                         06/22/2022 17:23:21 PAGE 5   
+
+ 239   1          if(info.iconFace){
+ 240   2              lcd_display_icon_on(ICON_FACE);
+ 241   2          }
+ 242   1          //-------冒号显示------------
+ 243   1          if(info.sec_flash){
+ 244   2              lcd_display_icon_on(ICON_COLON);
+ 245   2          }
+ 246   1      
+ 247   1          lcd_display_refresh();
+ 248   1          
+ 249   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    721    ----
+   CONSTANT SIZE    =     74    ----
+   XDATA SIZE       =     20    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      26
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

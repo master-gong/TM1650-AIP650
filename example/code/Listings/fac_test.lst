@@ -1,0 +1,66 @@
+C51 COMPILER V9.60.0.0   FAC_TEST                                                          03/20/2022 19:10:41 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE FAC_TEST
+OBJECT MODULE PLACED IN .\Objects\fac_test.obj
+COMPILER INVOKED BY: D:\Keil_v5_c51\C51\BIN\C51.EXE App\display\fac_test.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Bsp;.\App\r
+                    -tc;.\Bsp\tm1650;.\Bsp\delay;.\Bsp\time;.\Bsp\iic;.\App\wifi;.\Bsp\uart;.\App\display;.\App\button;.\App\light_control;.\
+                    -Bsp\adc;.\Bsp\eeprom) DEBUG OBJECTEXTEND PRINT(.\Listings\fac_test.lst) TABS(2) OBJECT(.\Objects\fac_test.obj)
+
+line level    source
+
+   1          
+   2          
+   3          #include "STC8H.h"
+   4          #include "my_type.h"
+   5          //#include "display.h"
+   6          #include "tm1650.h"
+   7          
+   8          
+   9          static uint8_t  xdata exit_test_disp=0;  /* 退出厂测结果显示 */
+  10          
+  11          extern _disp_buff_st   xdata    disp_data;          /* 显示数据 */
+  12          
+  13          
+  14          
+  15          void factory_test_start(void)
+  16          {
+  17   1        if(cycle_numbers()){//每当显示9后执行跳转判断，目的 完整显示一遍数字
+  18   2          if(fac_test_status == FAC_TEST_SUCCESS){
+  19   3              work_status = DISP_STATE_FACTORY_TEST_SUCCESS;
+  20   3          }else if(fac_test_status == FAC_TEST_FAIL){
+  21   3              work_status = DISP_STATE_FACTORY_TEST_FAIL;
+  22   3          } 
+  23   2          exit_test_disp =0;
+  24   2        }
+  25   1      }
+  26          
+  27          void factory_test_success(void)
+  28          {
+  29   1          display_status_success();
+  30   1          exit_test_disp ++;
+  31   1          if(exit_test_disp > 200){ //显示2S
+  32   2             work_status = DISP_STATE_NORMAL_DISP_MODE; //正常显示
+  33   2      
+  34   2          }
+  35   1      }
+  36          
+  37          void factory_test_fail(void)
+  38          {
+  39   1          display_status_fail();
+  40   1      
+  41   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     72    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      1    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

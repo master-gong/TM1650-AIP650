@@ -1,0 +1,232 @@
+C51 COMPILER V9.60.0.0   EEPROM                                                            06/11/2022 11:13:17 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE EEPROM
+OBJECT MODULE PLACED IN .\Objects\EEPROM.obj
+COMPILER INVOKED BY: D:\Keil_v5_c51\C51\BIN\C51.EXE Bsp\eeprom\EEPROM.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Bsp;.\App\rtc;
+                    -.\Bsp\tm1650;.\Bsp\delay;.\Bsp\time;.\Bsp\iic;.\App\wifi;.\Bsp\uart;.\App\display;.\App\button;.\App\light_control;.\Bsp
+                    -\adc;.\Bsp\eeprom;.\Bsp\disp_i2c\include;.\Bsp\tm1650\include;.\Bsp\tm1637\include) DEBUG OBJECTEXTEND PRINT(.\Listings\
+                    -EEPROM.lst) TABS(2) OBJECT(.\Objects\EEPROM.obj)
+
+line level    source
+
+   1          #include "STC8H.h"
+   2          #include "my_type.h"
+   3          #include "intrins.h"
+   4          //Product_ID[11]=*(u8*)(0x1FFFF7E8);
+   5          
+   6          
+   7          #define     IAP_STANDBY()   IAP_CMD = 0     //IAP空闲命令（禁止）
+   8          #define     IAP_READ()      IAP_CMD = 1     //IAP读出命令
+   9          #define     IAP_WRITE()     IAP_CMD = 2     //IAP写入命令
+  10          #define     IAP_ERASE()     IAP_CMD = 3     //IAP擦除命令
+  11          
+  12          #define     IAP_ENABLE()    IAP_CONTR = IAP_EN; IAP_TPS = MAIN_Fosc / 1000000
+  13          #define     IAP_DISABLE()   IAP_CONTR = 0; IAP_CMD = 0; IAP_TRIG = 0; IAP_ADDRH = 0xff; IAP_ADDRL = 0xff
+  14          
+  15          #define IAP_EN          (1<<7)
+  16          #define IAP_SWBS        (1<<6)
+  17          #define IAP_SWRST       (1<<5)
+  18          #define IAP_CMD_FAIL    (1<<4)
+  19          
+  20          //========================================================================
+  21          // 函数: void DisableEEPROM(void)
+  22          // 描述: 禁止EEPROM.
+  23          // 参数: none.
+  24          // 返回: none.
+  25          // 版本: V1.0, 2014-6-30
+  26          //========================================================================
+  27          void DisableEEPROM(void)        //禁止访问EEPROM
+  28          {
+  29   1          IAP_CONTR = 0;          //关闭 IAP 功能
+  30   1          IAP_CMD = 0;            //清除命令寄存器
+  31   1          IAP_TRIG = 0;           //清除触发寄存器
+  32   1          IAP_ADDRH = 0xff;       //将地址设置到非 IAP 区域
+  33   1          IAP_ADDRL = 0xff;
+  34   1      }
+  35          
+  36          //========================================================================
+  37          // 函数: void EEPROM_Trig(void)
+  38          // 描述: 触发EEPROM操作.
+  39          // 参数: none.
+  40          // 返回: none.
+  41          // 版本: V1.0, 2014-6-30
+  42          //========================================================================
+  43          void EEPROM_Trig(void)
+  44          {
+  45   1          F0 = EA;    //保存全局中断
+  46   1          EA = 0;     //禁止中断, 避免触发命令无效
+  47   1          IAP_TRIG = 0x5A;
+  48   1          IAP_TRIG = 0xA5;                    //先送5AH，再送A5H到IAP触发寄存器，每次都需要如此
+  49   1                                              //送完A5H后，IAP命令立即被触发启动
+  50   1                                              //CPU等待IAP完成后，才会继续执行程序。
+  51   1          _nop_();
+  52   1          _nop_();
+C51 COMPILER V9.60.0.0   EEPROM                                                            06/11/2022 11:13:17 PAGE 2   
+
+  53   1          EA = F0;    //恢复全局中断
+  54   1      }
+  55          
+  56          //========================================================================
+  57          // 函数: void EEPROM_SectorErase(u16 EE_address)
+  58          // 描述: 擦除一个扇区.
+  59          // 参数: EE_address:  要擦除的EEPROM的扇区中的一个字节地址.
+  60          // 返回: none.
+  61          // 版本: V1.0, 2014-6-30
+  62          //========================================================================
+  63          void EEPROM_SectorErase(u16 EE_address)
+  64          {
+  65   1          IAP_ENABLE();                       //设置等待时间，允许IAP操作，送一次就够
+  66   1          IAP_ERASE();                        //宏调用, 送扇区擦除命令，命令不需改变时，不需重新送命令
+  67   1                                              //只有扇区擦除，没有字节擦除，512字节/扇区。
+  68   1                                              //扇区中任意一个字节地址都是扇区地址。
+  69   1          IAP_ADDRH = EE_address / 256;       //送扇区地址高字节（地址需要改变时才需重新送地址）
+  70   1          IAP_ADDRL = EE_address % 256;       //送扇区地址低字节
+  71   1          EEPROM_Trig();                      //触发EEPROM操作
+  72   1          DisableEEPROM();                    //禁止EEPROM操作
+  73   1      }
+  74          
+  75          //========================================================================
+  76          // 函数: void EEPROM_read_n(u16 EE_address,u8 *DataAddress,u8 lenth)
+  77          // 描述: 读N个字节函数.
+  78          // 参数: EE_address:  要读出的EEPROM的首地址.
+  79          //       DataAddress: 要读出数据的指针.
+  80          //       length:      要读出的长度
+  81          // 返回: 0: 写入正确.  1: 写入长度为0错误.  2: 写入数据错误.
+  82          // 版本: V1.0, 2014-6-30
+  83          //========================================================================
+  84          void EEPROM_read_n(u16 EE_address,u8 *DataAddress,u8 length)
+  85          {
+  86   1          IAP_ENABLE();                           //设置等待时间，允许IAP操作，送一次就够
+  87   1          IAP_READ();                             //送字节读命令，命令不需改变时，不需重新送命令
+  88   1          do
+  89   1          {
+  90   2              IAP_ADDRH = EE_address / 256;       //送地址高字节（地址需要改变时才需重新送地址）
+  91   2              IAP_ADDRL = EE_address % 256;       //送地址低字节
+  92   2              EEPROM_Trig();                      //触发EEPROM操作
+  93   2              *DataAddress = IAP_DATA;            //读出的数据送往
+  94   2              EE_address++;
+  95   2              DataAddress++;
+  96   2          }while(--length);
+  97   1      
+  98   1          DisableEEPROM();
+  99   1      }
+ 100          
+ 101          
+ 102          //========================================================================
+ 103          // 函数: u8 EEPROM_write_n(u16 EE_address,u8 *DataAddress,u8 length)
+ 104          // 描述: 写N个字节函数.
+ 105          // 参数: EE_address:  要写入的EEPROM的首地址.
+ 106          //       DataAddress: 要写入数据的指针.
+ 107          //       length:      要写入的长度
+ 108          // 返回: 0: 写入正确.  1: 写入长度为0错误.  2: 写入数据错误.
+ 109          // 版本: V1.0, 2014-6-30
+ 110          //========================================================================
+ 111          u8 EEPROM_write_n(u16 EE_address,u8 *DataAddress,u8 length)
+ 112          {
+ 113   1          u8  i;
+ 114   1          u16 j;
+C51 COMPILER V9.60.0.0   EEPROM                                                            06/11/2022 11:13:17 PAGE 3   
+
+ 115   1          u8  *p;
+ 116   1          
+ 117   1          if(length == 0) return 1;   //长度为0错误
+ 118   1      
+ 119   1          IAP_ENABLE();                       //设置等待时间，允许IAP操作，送一次就够
+ 120   1          i = length;
+ 121   1          j = EE_address;
+ 122   1          p = DataAddress;
+ 123   1          IAP_WRITE();                            //宏调用, 送字节写命令
+ 124   1          do
+ 125   1          {
+ 126   2              IAP_ADDRH = EE_address / 256;       //送地址高字节（地址需要改变时才需重新送地址）
+ 127   2              IAP_ADDRL = EE_address % 256;       //送地址低字节
+ 128   2              IAP_DATA  = *DataAddress;           //送数据到IAP_DATA，只有数据改变时才需重新送
+ 129   2              EEPROM_Trig();                      //触发EEPROM操作
+ 130   2              EE_address++;                       //下一个地址
+ 131   2              DataAddress++;                      //下一个数据
+ 132   2          }while(--length);                       //直到结束
+ 133   1      
+ 134   1          EE_address = j;
+ 135   1          length = i;
+ 136   1          DataAddress = p;
+ 137   1          i = 0;
+ 138   1          IAP_READ();                             //读N个字节并比较
+ 139   1          do
+ 140   1          {
+ 141   2              IAP_ADDRH = EE_address / 256;       //送地址高字节（地址需要改变时才需重新送地址）
+ 142   2              IAP_ADDRL = EE_address % 256;       //送地址低字节
+ 143   2              EEPROM_Trig();                      //触发EEPROM操作
+ 144   2              if(*DataAddress != IAP_DATA)        //读出的数据与源数据比较
+ 145   2              {
+ 146   3                  i = 2;
+ 147   3                  break;
+ 148   3              }
+ 149   2              EE_address++;
+ 150   2              DataAddress++;
+ 151   2          }while(--length);
+ 152   1      
+ 153   1          DisableEEPROM();
+ 154   1          return i;
+ 155   1      }
+ 156          
+ 157          
+ 158          
+ 159          ///**************************************
+ 160          //函数功能：从指定地址读取一个字节的数据
+ 161          //输入参数：存储地址(0-630)
+ 162          //输出参数：输入地址的存储数据
+ 163          //备    注：无
+ 164          //***************************************/
+ 165          //unsigned char EEPROM_Read(unsigned short ch)
+ 166          //{
+ 167          //  unsigned char shuju;
+ 168          //  
+ 169          //  shuju= *(u8*)(0x4000+ch);; 
+ 170          //  
+ 171          //  return shuju;
+ 172          //}
+ 173          
+ 174          ///**************************************
+ 175          //函数功能：像指定地址写一个字节的数据
+ 176          //输入参数：address：地址(0-630)  dat： 数据
+C51 COMPILER V9.60.0.0   EEPROM                                                            06/11/2022 11:13:17 PAGE 4   
+
+ 177          //输出参数：无
+ 178          //备    注：无
+ 179          //***************************************/
+ 180          //void EEPROM_Write(unsigned short address,unsigned char dat)
+ 181          //{
+ 182          //    unsigned char *p=(unsigned char *)(0x4000+address); 
+ 183          //    
+ 184          //    /*操作EEPROM，需要先进行解锁*/  
+ 185          //    FLASH_DUKR=0xAE; //注意这里不能断点调试，否则会造成内部不同步，FLASH解锁失败  
+ 186          //    FLASH_DUKR=0x56;  
+ 187          //    FLASH_CR2=0x00;  
+ 188          //    FLASH_NCR2=0xFF;  
+ 189          //    
+ 190          //    if(FLASH_IAPSR & 0x08) //检测对应的位是否解锁  
+ 191          //    {
+ 192          //     *p=dat;
+ 193          //      
+ 194          //    }
+ 195          //    
+ 196          //    FLASH_IAPSR &=~ 0x08; //重新上锁   
+ 197          // 
+ 198          //}
+ 199          
+ 200          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    214    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      18
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

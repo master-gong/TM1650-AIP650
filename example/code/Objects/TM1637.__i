@@ -1,0 +1,1 @@
+"Bsp\tm1637\TM1637.c" OPTIMIZE (8,SPEED) BROWSE INCDIR(.\Bsp;.\Bsp\disp_i2c;.\Bsp\tm1650) DEBUG OBJECTEXTEND PRINT(.\Listings\TM1637.lst) TABS (2) OBJECT(.\Objects\TM1637.obj)

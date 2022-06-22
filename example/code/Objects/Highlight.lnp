@@ -1,0 +1,7 @@
+".\Objects\STARTUP.obj",
+".\Objects\main_task.obj",
+".\Objects\time.obj",
+".\Objects\disp_iic.obj",
+".\Objects\AIP650.obj" 
+TO ".\Objects\Highlight" 
+PRINT(".\Listings\Highlight.m51") RAMSIZE(256) 

@@ -1,0 +1,153 @@
+C51 COMPILER V9.60.0.0   NORMAL                                                            03/20/2022 19:10:42 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE NORMAL
+OBJECT MODULE PLACED IN .\Objects\normal.obj
+COMPILER INVOKED BY: D:\Keil_v5_c51\C51\BIN\C51.EXE App\display\normal.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Bsp;.\App\rtc
+                    -;.\Bsp\tm1650;.\Bsp\delay;.\Bsp\time;.\Bsp\iic;.\App\wifi;.\Bsp\uart;.\App\display;.\App\button;.\App\light_control;.\Bs
+                    -p\adc;.\Bsp\eeprom) DEBUG OBJECTEXTEND PRINT(.\Listings\normal.lst) TABS(2) OBJECT(.\Objects\normal.obj)
+
+line level    source
+
+   1          
+   2          #include "STC8H.h"
+   3          #include "my_type.h"
+   4          #include "time.h"
+   5          #include "USART.h"
+   6          #include "iic.h"
+   7          #include "rtc.h"
+   8          #include "tm1650.h"
+   9          
+  10          
+  11          
+  12          extern _tm              xdata   get_time;                   /* 时间信息 */
+  13          extern _disp_buff_st    xdata   disp_data;                  /* 显示数据 */
+  14          
+  15          
+  16          
+  17          
+  18          /* void temp_disp(void)
+  19          {
+  20                   uint16_t temp;
+  21             if(temp_value < 0){       //零下温度
+  22                disp_data.grid_data[0] = LED_SIGE_M_;
+  23                      temp = 0 - temp_value;
+  24                      
+  25             }else{
+  26                temp = temp_value;
+  27             }
+  28                   disp_data.grid_data[1] = temp/10%10;
+  29             disp_data.grid_data[2] = temp%10;
+  30                   disp_data.grid_data[3] = LED_SIGE_c;
+  31           }*/
+  32            
+  33           void second_disp(void)
+  34          {
+  35   1              disp_data.grid_data[0] = get_time.tm_min/10;
+  36   1        disp_data.grid_data[1] = get_time.tm_min%10;
+  37   1        disp_data.grid_data[2] = get_time.tm_sec/10;
+  38   1        disp_data.grid_data[3] = get_time.tm_sec%10;
+  39   1        disp_data.second = 1;
+  40   1      }
+  41          
+  42           void time_disp(void)
+  43          {
+  44   1        disp_data.grid_data[0] = get_time.tm_hour/10;
+  45   1        if(disp_data.grid_data[0] == 0){
+  46   2          disp_data.grid_data[0] = LED_SIGE_OFF;  //不显示
+  47   2        }
+  48   1        disp_data.grid_data[1] = get_time.tm_hour%10;
+  49   1        disp_data.grid_data[2] = get_time.tm_min/10;
+  50   1        disp_data.grid_data[3] = get_time.tm_min%10;
+  51   1      
+  52   1        if(disp_data.flash||second_disp_switch){
+  53   2           disp_data.second = 1;
+C51 COMPILER V9.60.0.0   NORMAL                                                            03/20/2022 19:10:42 PAGE 2   
+
+  54   2        }
+  55   1      }
+  56          
+  57          static void time_disp_12(void)
+  58          {
+  59   1        uint8_t  time_h = get_time.tm_hour;
+  60   1      
+  61   1        if(time_h > 12){
+  62   2           time_h -= 12;
+  63   2        }
+  64   1              
+  65   1        disp_data.grid_data[0] = time_h/10;
+  66   1        if(disp_data.grid_data[0] == 0){
+  67   2          disp_data.grid_data[0] = LED_SIGE_OFF;  //不显示
+  68   2        }
+  69   1        disp_data.grid_data[1] = time_h%10;
+  70   1        disp_data.grid_data[2] = get_time.tm_min/10;
+  71   1        disp_data.grid_data[3] = get_time.tm_min%10;
+  72   1      
+  73   1        if(disp_data.flash||second_disp_switch){
+  74   2           disp_data.second = 1;
+  75   2        }
+  76   1      
+  77   1      }
+  78          
+  79           void date_disp(void)
+  80          {
+  81   1        uint8_t  data_buff;
+  82   1        data_buff = (get_time.tm_mon+1)/10;
+  83   1        if(data_buff == 0){//1-9
+  84   2            disp_data.grid_data[0] = (get_time.tm_mon+1)%10;
+  85   2            disp_data.grid_data[1] = LED_SIGE_M_; //-
+  86   2        }else{
+  87   2            disp_data.grid_data[0] = 1;
+  88   2            disp_data.grid_data[1] = (get_time.tm_mon+1)%10;
+  89   2        }
+  90   1        disp_data.grid_data[2] = get_time.tm_mday/10;
+  91   1        disp_data.grid_data[3] = get_time.tm_mday%10;
+  92   1      }
+  93          
+  94          
+  95          /*正常显示模式*/
+  96          void normal_diasp(void)
+  97          {
+  98   1         if(disp_mode == DISP_MODE_DP1){
+  99   2              disp_switch_count = get_time.tm_sec %15;
+ 100   2              if((disp_switch_count>5)&&(disp_switch_count<10)){ //显示4S 日期 
+ 101   3                  date_disp();   
+ 102   3              }else{
+ 103   3                  time_disp();   //显示9S 时间 
+ 104   3              }
+ 105   2         }else if(disp_mode == DISP_MODE_DP2){ //静态：十分
+ 106   2             time_disp();
+ 107   2         }else if(disp_mode == DISP_MODE_DP3){ //静态：秒 
+ 108   2            second_disp();
+ 109   2         }else if(disp_mode == DISP_MODE_DP4){ //静态：日期 
+ 110   2            date_disp();
+ 111   2         }else if(disp_mode == DISP_MODE_DP5){ 
+ 112   2              disp_switch_count = get_time.tm_sec %15;
+ 113   2              if((disp_switch_count>5)&&(disp_switch_count<10)){ //显示4S 日期 
+ 114   3                  date_disp();   
+ 115   3              }else{
+C51 COMPILER V9.60.0.0   NORMAL                                                            03/20/2022 19:10:42 PAGE 3   
+
+ 116   3                  time_disp_12();   //显示9S 时间 12H
+ 117   3              }
+ 118   2         }else if(disp_mode == DISP_MODE_DP6){ //静态：十分 12H制
+ 119   2            time_disp_12();
+ 120   2         }
+ 121   1      }
+ 122          
+ 123          
+ 124          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    429    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

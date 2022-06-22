@@ -1,0 +1,115 @@
+C51 COMPILER V9.60.0.0   WIFI_BIND                                                         03/20/2022 19:10:42 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE WIFI_BIND
+OBJECT MODULE PLACED IN .\Objects\wifi_bind.obj
+COMPILER INVOKED BY: D:\Keil_v5_c51\C51\BIN\C51.EXE App\display\wifi_bind.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Bsp;.\App\
+                    -rtc;.\Bsp\tm1650;.\Bsp\delay;.\Bsp\time;.\Bsp\iic;.\App\wifi;.\Bsp\uart;.\App\display;.\App\button;.\App\light_control;.
+                    -\Bsp\adc;.\Bsp\eeprom) DEBUG OBJECTEXTEND PRINT(.\Listings\wifi_bind.lst) TABS(2) OBJECT(.\Objects\wifi_bind.obj)
+
+line level    source
+
+   1          
+   2          #include "STC8H.h"
+   3          #include "my_type.h"
+   4          #include "time.h"
+   5          #include "USART.h"
+   6          #include "iic.h"
+   7          #include "rtc.h"
+   8          #include "button.h"
+   9          #include "tm1650.h"
+  10          
+  11          static uint16_t xdata exit_wifi_binding_disp=0;
+  12          static uint8_t xdata bind_flash_count=0, bind_flash_value=0;
+  13          
+  14          extern _disp_buff_st xdata disp_data;          /* 显示数据 */
+  15          
+  16          void wifi_binding_start(void)
+  17          {
+  18   1          uint8_t  value;   
+  19   1          uint8_t  disp_code;
+  20   1          if(work_status == DISP_STATE_WIFI_BIND_START){      //WIFI绑定开始
+  21   2              value = 70;//700mS
+  22   2          }else{// if(work_status == DISP_STATE_WIFI_BIND_WAIT){ //WIFI绑定等待
+  23   2              value = 20; //200ms
+  24   2          }
+  25   1          
+  26   1          if(wifi_bind_status == WIFI_BIND_START){
+  27   2              disp_code = LED_SIGE_M_;
+  28   2          }else if(wifi_bind_status == WIFI_BIND_REC_SSID){
+  29   2              disp_code = LED_SIGE_Uo;
+  30   2          }else if(wifi_bind_status == WIFI_BIND_WIFI_LINK_OK){
+  31   2              disp_code = LED_SIGE_Do;
+  32   2          }
+  33   1      
+  34   1          //----------显示-----------
+  35   1          bind_flash_count++;
+  36   1          if(bind_flash_count > value){
+  37   2             bind_flash_count = 0;
+  38   2             bind_flash_value++;
+  39   2             
+  40   2             if(bind_flash_value == 1){
+  41   3                disp_data.grid_data[0]= disp_code;   //-
+  42   3             }else if(bind_flash_value == 2){
+  43   3                disp_data.grid_data[1]= disp_code;   //-
+  44   3             }else if(bind_flash_value == 3){
+  45   3                disp_data.grid_data[2]= disp_code;   //-
+  46   3             }else if(bind_flash_value == 4){
+  47   3                disp_data.grid_data[3]= disp_code;   //-
+  48   3             }else if(bind_flash_value == 5){
+  49   3                disp_data.grid_data[2]= disp_code;   //-
+  50   3             }else if(bind_flash_value == 6){
+  51   3                disp_data.grid_data[1]= disp_code;   //-
+  52   3                bind_flash_value = 0;
+  53   3             }else{
+C51 COMPILER V9.60.0.0   WIFI_BIND                                                         03/20/2022 19:10:42 PAGE 2   
+
+  54   3                bind_flash_value = 0;
+  55   3             }
+  56   2             ucFlag.BIT.REFRESH = true; 
+  57   2          }
+  58   1          //-------跳转判断----------
+  59   1          if(wifi_bind_status == WIFI_BIND_SUCCESS){
+  60   2              work_status = DISP_STATE_WIFI_BIND_SUCCESS;
+  61   2          }else if(wifi_bind_status == WIFI_BIND_FAIL){
+  62   2              work_status = DISP_STATE_WIFI_BIND_FAIL;
+  63   2          } 
+  64   1          exit_wifi_binding_disp =0;
+  65   1        
+  66   1      }
+  67          
+  68          void wifi_binding_success(void)
+  69          {
+  70   1          display_status_success();
+  71   1          exit_wifi_binding_disp ++;
+  72   1          ntp_get_succ_flag = 1;
+  73   1          if(exit_wifi_binding_disp > 300){ //显示3S
+  74   2             work_status = DISP_STATE_NORMAL_DISP_MODE; //正常显示
+  75   2             wifi_bind_status = WIFI_BIND_START;
+  76   2          }
+  77   1      }
+  78          
+  79          void wifi_binding_fail(void)
+  80          {
+  81   1          display_status_fail();
+  82   1          exit_wifi_binding_disp ++;
+  83   1          ntp_get_succ_flag = 0;
+  84   1          if(exit_wifi_binding_disp > 500){ //显示5S
+  85   2             work_status = DISP_STATE_NORMAL_DISP_MODE; //正常显示时间
+  86   2             wifi_bind_status = WIFI_BIND_START;
+  87   2          }
+  88   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    289    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      4    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,41 @@
+C51 COMPILER V9.60.0.0   MAIN                                                              02/21/2021 14:30:52 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE App\main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\mai
+                    -n.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          //========================================================================
+   2          // 函数: void main(void)
+   3          // 描述: 主函数。
+   4          // 参数: none.
+   5          // 返回: none.
+   6          // 版本: VER1.0
+   7          // 日期: 
+   8          // 备注: 
+   9          //========================================================================
+  10          void main(void)
+  11          {
+  12   1        
+  13   1        
+  14   1        
+  15   1        
+  16   1        
+  17   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =      1    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

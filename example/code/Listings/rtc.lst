@@ -1,0 +1,151 @@
+C51 COMPILER V9.60.0.0   RTC                                                               03/20/2022 19:10:42 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE RTC
+OBJECT MODULE PLACED IN .\Objects\rtc.obj
+COMPILER INVOKED BY: D:\Keil_v5_c51\C51\BIN\C51.EXE App\rtc\rtc.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Bsp;.\App\rtc;.\Bsp\
+                    -tm1650;.\Bsp\delay;.\Bsp\time;.\Bsp\iic;.\App\wifi;.\Bsp\uart;.\App\display;.\App\button;.\App\light_control;.\Bsp\adc;.
+                    -\Bsp\eeprom) DEBUG OBJECTEXTEND PRINT(.\Listings\rtc.lst) TABS(2) OBJECT(.\Objects\rtc.obj)
+
+line level    source
+
+   1          #include "STC8H.h"
+   2          #include "rtc.h"
+   3          #include "iic.h"
+   4          #include "intrins.h"
+   5          
+   6          
+   7          extern uint8_t  xdata get_time_s_old;             //旧时间信息
+   8          /**
+   9           * @brief    Time format conversion
+  10           * @param
+  11           * @return
+  12           */
+  13          void format_conversion_bcd_to_bin(_tm *time_bin,_time_information* time_bcd)
+  14          {
+  15   1          time_bin->tm_year = time_bcd->time.year  /16*10 + time_bcd->time.year  %16 + 100 +1900;
+  16   1          time_bin->tm_mon  = time_bcd->time.month /16*10 + time_bcd->time.month %16 - 1;
+  17   1          time_bin->tm_mday = time_bcd->time.day   /16*10 + time_bcd->time.day   %16;
+  18   1          time_bin->tm_hour = time_bcd->time.hour  /16*10 + time_bcd->time.hour  %16;
+  19   1          time_bin->tm_min  = time_bcd->time.minute/16*10 + time_bcd->time.minute%16;
+  20   1          time_bin->tm_sec  = time_bcd->time.second/16*10 + time_bcd->time.second%16;
+  21   1          time_bin->tm_wday  = time_bcd->time.week;
+  22   1      }
+  23          /**
+  24           * @brief    Time format conversion
+  25           * @param
+  26           * @return
+  27           */
+  28          void format_conversion_bin_to_bcd(_tm *time_bin,_time_information* time_bcd)
+  29          {
+  30   1        if(time_bin->tm_year > 2000){
+  31   2            time_bcd->time.year = ((time_bin->tm_year-2000)/10*16)+((time_bin->tm_year-2000)%10);
+  32   2        }else{
+  33   2            time_bcd->time.year = 0x00;
+  34   2        }
+  35   1              time_bin->tm_mon += 1;
+  36   1        time_bcd->time.month = time_bin->tm_mon  / 10*16 + time_bin->tm_mon  % 10;
+  37   1        time_bcd->time.day   = time_bin->tm_mday / 10*16 + time_bin->tm_mday % 10;
+  38   1        time_bcd->time.hour  = time_bin->tm_hour / 10*16 + time_bin->tm_hour % 10;
+  39   1        time_bcd->time.minute = time_bin->tm_min / 10*16 + time_bin->tm_min  % 10;
+  40   1        time_bcd->time.second = time_bin->tm_sec / 10*16 + time_bin->tm_sec  % 10;
+  41   1              time_bcd->time.week =  time_bin->tm_wday;
+  42   1      }
+  43          
+  44          //char time_24H_to_12H(char *h12_h,char h24_h)
+  45          //{
+  46          //   if(h24_h <12){
+  47          //      *h12_h = h24_h;
+  48          //      return 0;
+  49          //   }else if(h24_h ==12){
+  50          //      *h12_h = h24_h;
+  51          //      return 1;
+  52          //   }else{
+  53          //      *h12_h = h24_h-12;
+C51 COMPILER V9.60.0.0   RTC                                                               03/20/2022 19:10:42 PAGE 2   
+
+  54          //      return 1;
+  55          //   }
+  56          //    
+  57          //    /*uint8_t dec24_h;
+  58          //    uint8_t dec12_h;
+  59          //    dec24_h = h24_h/16*10 + h24_h%16;
+  60          //    if(dec24_h > 12){
+  61          //       dec12_h = dec24_h - 12;
+  62          //       *h12_h = dec12_h/10*16 + dec12_h%10;
+  63          //       return 1; 
+  64          //    }if(dec24_h == 12){
+  65          //       *h12_h = h24_h;
+  66          //       return 1; 
+  67          //    }else{
+  68          //       *h12_h = h24_h;
+  69          //       return 0;
+  70          //    }*/
+  71          //}
+  72          
+  73          
+  74          
+  75          /**
+  76           * @brief      Setup time.
+  77           * @param[in]  time
+  78           * @return     none
+  79           */
+  80          char pcf8563_set_time(_tm sblock)
+  81          {
+  82   1        // int32_t   return_value;
+  83   1         uint8_t   data_buff[8];
+  84   1         //_time_information  time_info;
+  85   1      
+  86   1         //------------------写入停止--------------------
+  87   1         data_buff[0]=0x00;
+  88   1         data_buff[1]=0x20;
+  89   1         iic_write_data(0xA2,data_buff,2);
+  90   1         //------------------写入开始--------------------
+  91   1         data_buff[0]=0x00;
+  92   1         data_buff[1]=0x00;
+  93   1         iic_write_data(0xA2,data_buff,2);
+  94   1         //------------------写入时间--------------------
+  95   1         data_buff[0]=0x02;
+  96   1         get_time_s_old = sblock.tm_sec;
+  97   1         format_conversion_bin_to_bcd(&sblock,(_time_information*)&data_buff[1]);
+  98   1         iic_write_data(0xA2,data_buff,8);
+  99   1         //-----------------
+ 100   1         time_repeat_read = 0;
+ 101   1         second_count = 0;
+ 102   1         rtc_reset_flag = 0;
+ 103   1         return 0;
+ 104   1      }
+ 105          
+ 106          char pcf8563_get_time(_tm* tblock)
+ 107          {
+ 108   1         _time_information  time_info;
+ 109   1         char VL;
+ 110   1         
+ 111   1         iic_read_data(0xA3,0x02,time_info.buff,7);
+ 112   1         if((time_info.time.second&0x80)==0x80){
+ 113   2            VL = 1;
+ 114   2            time_info.time.second &= ~0x80;
+ 115   2         }else{
+C51 COMPILER V9.60.0.0   RTC                                                               03/20/2022 19:10:42 PAGE 3   
+
+ 116   2            VL = 0;
+ 117   2         }
+ 118   1        
+ 119   1         format_conversion_bcd_to_bin(tblock,&time_info);
+ 120   1         
+ 121   1         return VL;
+ 122   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    735    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      41
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,205 @@
+C51 COMPILER V9.60.0.0   AIP650                                                            06/22/2022 19:42:54 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE AIP650
+OBJECT MODULE PLACED IN .\Objects\AIP650.obj
+COMPILER INVOKED BY: D:\Keil_v5_c51\C51\BIN\C51.EXE Bsp\tm1650\AIP650.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Bsp;.\Bsp\disp
+                    -_i2c;.\Bsp\tm1650) DEBUG OBJECTEXTEND PRINT(.\Listings\AIP650.lst) TABS(2) OBJECT(.\Objects\AIP650.obj)
+
+line level    source
+
+   1          /**
+   2          * @file      TM1650.c
+   3          * @brief     TM1650/AIP650 驱动程序.
+   4          * @author    mastergong
+   5          * @date      2021-08-17
+   6          * @version   001
+   7          * @copyright -
+   8          */
+   9          
+  10          #include "AIP650.h"
+  11          
+  12          
+  13          //此码表只适合描述中模组， 不同连接方式码表不同
+  14          const char seg_code[]={
+  15          0x3F,  /* 0:  0 */
+  16          0x06,  /* 1:  1 */
+  17          0x5B,  /* 2:  2 */
+  18          0x4F,  /* 3:  3 */
+  19          0x66,  /* 4:  4 */
+  20          0x6D,  /* 5:  5 */
+  21          0x7D,  /* 6:  6 */
+  22          0x07,  /* 7:  7 */
+  23          0x7F,  /* 8:  8*/
+  24          0x6F,  /* 9:  9 */
+  25          0x77,  /* 10: A */
+  26          0x7C,  /* 11: B */
+  27          0x39,  /* 12: C */
+  28          0x5E,  /* 13: d */
+  29          0x79,  /* 14: E */
+  30          0x71,  /* 15: F */
+  31          0x76,  /* 16: H */
+  32          0x38,  /* 17: L */
+  33          0x50,  /* 18: r */
+  34          0x73,  /* 19：p */
+  35          0x37,  /* 20：N */
+  36          0x40,  /* 21: - 中- */
+  37          0x01,  /* 22：- 上- */
+  38          0x08,  /* 23：_ 下- */
+  39          0x63,  /* 24：o 上o */
+  40          0x5C,  /* 25：o 下o */
+  41          0x3E,  /* 26: U */
+  42          0x58,  /* 27：c */
+  43          0x6B,  /* 28：上o 下-*/
+  44          0x5D,  /* 29：下o 上-*/
+  45          0x00,  /* 30：  */
+  46          };
+  47          
+  48          #define SECOND_CODE 0x80
+  49          
+  50          
+  51          
+  52          //反转
+  53          static char code_reversed(char segCode)
+  54          {
+C51 COMPILER V9.60.0.0   AIP650                                                            06/22/2022 19:42:54 PAGE 2   
+
+  55   1        char res_data=0;
+  56   1        if((segCode&0x01)==0x01){
+  57   2          res_data|=0x08;
+  58   2        } 
+  59   1      
+  60   1        if((segCode&0x02)==0x02){
+  61   2          res_data|=0x10;
+  62   2        }               
+  63   1      
+  64   1        if((segCode&0x04)==0x04){
+  65   2          res_data|=0x20;
+  66   2        }           
+  67   1             
+  68   1        if((segCode&0x08)==0x08){
+  69   2          res_data|=0x01;
+  70   2        }       
+  71   1      
+  72   1        if((segCode&0x10)==0x10){
+  73   2          res_data|=0x02;
+  74   2        }       
+  75   1      
+  76   1        if((segCode&0x20)==0x20){
+  77   2          res_data|=0x04;
+  78   2        }  
+  79   1      
+  80   1        if((segCode&0x40)==0x40){
+  81   2          res_data|=0x40;
+  82   2        }  
+  83   1        return res_data;
+  84   1      }
+  85          
+  86          
+  87          //镜像
+  88          static char code_up_down_mirror(char segCode){
+  89   1          char res_data = segCode;
+  90   1          res_data &=~ 0x3F;
+  91   1      
+  92   1          if((segCode&0x01)==0x01){
+  93   2              res_data |= 0x08;
+  94   2          }
+  95   1          if((segCode&0x02)==0x02){
+  96   2              res_data |= 0x04;
+  97   2          }
+  98   1      
+  99   1          if((segCode&0x04)==0x04){
+ 100   2              res_data |= 0x02;
+ 101   2          }
+ 102   1      
+ 103   1          if((segCode&0x08)==0x08){
+ 104   2              res_data |= 0x01;
+ 105   2          }
+ 106   1      
+ 107   1          if((segCode&0x10)==0x10){
+ 108   2              res_data |= 0x20;
+ 109   2          }
+ 110   1      
+ 111   1          if((segCode&0x20)==0x20){
+ 112   2              res_data |= 0x10;
+ 113   2          }
+ 114   1      
+ 115   1          return res_data;
+ 116   1      }
+C51 COMPILER V9.60.0.0   AIP650                                                            06/22/2022 19:42:54 PAGE 3   
+
+ 117          
+ 118          
+ 119          //显示接口 4位数码管
+ 120          //0.28寸 
+ 121          //0.4寸
+ 122          //0.56寸
+ 123          //0.8寸
+ 124          void drive_air650_4b01(_disp_buff_st info)
+ 125          {
+ 126   1         char buff[4];
+ 127   1      
+ 128   1         //--------亮度设置-----------
+ 129   1         if(info.brightness >= 7){
+ 130   2            info.brightness = 0;
+ 131   2         }else{
+ 132   2            info.brightness += 1;
+ 133   2         }
+ 134   1      
+ 135   1      
+ 136   1         //-------code码赋值----------
+ 137   1         buff[0] = seg_code[info.grid_data[0]];
+ 138   1         buff[1] = seg_code[info.grid_data[1]];
+ 139   1         buff[2] = seg_code[info.grid_data[2]];
+ 140   1         buff[3] = seg_code[info.grid_data[3]];
+ 141   1         
+ 142   1         //-------翻转判断-----------
+ 143   1         if(info.flip){
+ 144   2            buff[0] = code_reversed(seg_code[info.grid_data[3]]);
+ 145   2            buff[1] = code_reversed(seg_code[info.grid_data[2]]);
+ 146   2            buff[2] = code_reversed(seg_code[info.grid_data[1]]);
+ 147   2            buff[3] = code_reversed(seg_code[info.grid_data[0]]);
+ 148   2          }
+ 149   1         
+ 150   1          //-------镜像判断-----------
+ 151   1          if(info.mirror){
+ 152   2            buff[0] = code_up_down_mirror(buff[0]);
+ 153   2            buff[1] = code_up_down_mirror(buff[1]);
+ 154   2            buff[2] = code_up_down_mirror(buff[2]);
+ 155   2            buff[3] = code_up_down_mirror(buff[3]);
+ 156   2          }
+ 157   1      
+ 158   1          //-------冒号显示------------
+ 159   1          if(info.sec_flash){
+ 160   2            buff[1]  |=  SECOND_CODE;
+ 161   2          }
+ 162   1      
+ 163   1      
+ 164   1          if(info.off == 0xA5){ //关闭显示
+ 165   2              TM1650_SET(0x48,0x00);
+ 166   2          }else{
+ 167   2              TM1650_SET(0x48,((info.brightness << 4)&0x70)|0x01);//亮度调节
+ 168   2          }
+ 169   1       
+ 170   1          TM1650_SET(0x68,buff[0]);
+ 171   1          TM1650_SET(0x6A,buff[1]);
+ 172   1          TM1650_SET(0x6C,buff[2]);
+ 173   1          TM1650_SET(0x6E,buff[3]);
+ 174   1        
+ 175   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+C51 COMPILER V9.60.0.0   AIP650                                                            06/22/2022 19:42:54 PAGE 4   
+
+   CODE SIZE        =    298    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     31      13
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,95 @@
+C51 COMPILER V9.60.0.0   LED_CONTROL                                                       06/11/2022 11:44:13 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE LED_CONTROL
+OBJECT MODULE PLACED IN .\Objects\led_control.obj
+COMPILER INVOKED BY: D:\Keil_v5_c51\C51\BIN\C51.EXE App\led\led_control.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Bsp;.\App\rt
+                    -c;.\Bsp\tm1650;.\Bsp\delay;.\Bsp\time;.\Bsp\iic;.\App\wifi;.\Bsp\uart;.\App\display;.\App\button;.\App\light_control;.\B
+                    -sp\adc;.\Bsp\eeprom;.\Bsp\disp_i2c\include;.\Bsp\tm1650\include;.\Bsp\tm1637\include;.\Bsp\pcf8576c\include) DEBUG OBJEC
+                    -TEXTEND PRINT(.\Listings\led_control.lst) TABS(2) OBJECT(.\Objects\led_control.obj)
+
+line level    source
+
+   1          
+   2          //#include "STC8H.h"
+   3          //#include "my_type.h"
+   4          
+   5          //#define   LED_ON           P11 = 0
+   6          //#define   LED_OFF          P11 = 1
+   7          //#define   SET_LED_POWER_PIN()     {P1M1|=0x02;P1M0|=0x02;}//P11
+   8          
+   9          
+  10          
+  11          //static  uint16_t xdata  led_conut=0;
+  12          ////0: 900ms Off - 50ms ON
+  13          ////1: ON
+  14          ////2: 200ms Off - 200ms ON
+  15          ////other: Off
+  16          //static  uint8_t xdata ledStatus=0;
+  17          
+  18          //void led_gpio_init(void)
+  19          //{
+  20          //  SET_LED_POWER_PIN();
+  21          //  
+  22          //}
+  23          
+  24          
+  25          //void led_control_handle(void)
+  26          //{
+  27          //    led_conut++;
+  28          //    if(ledStatus == 0){ //0: 1900ms Off - 50ms ON
+  29          //      if(led_conut< 190){
+  30          //        LED_OFF;
+  31          //      }else if(led_conut< 195){
+  32          //        LED_ON;
+  33          //      }else{
+  34          //        led_conut=0;
+  35          //      }
+  36          //    }else if(ledStatus == 1){ //1: ON
+  37          //      led_conut=0;
+  38          //      LED_ON;
+  39          //    }else if(ledStatus == 2){ //2: 200ms Off - 200ms ON
+  40          //        if(led_conut< 20){
+  41          //            LED_OFF;
+  42          //        }else if(led_conut< 40){
+  43          //            LED_ON;
+  44          //        }else{
+  45          //            led_conut=0;
+  46          //        }
+  47          //    }
+  48          //    else if(ledStatus == 4){ //4: 500ms Off - 500ms ON
+  49          //        if(led_conut< 50){
+  50          //            LED_OFF;
+  51          //        }else if(led_conut< 100){
+  52          //            LED_ON;
+C51 COMPILER V9.60.0.0   LED_CONTROL                                                       06/11/2022 11:44:13 PAGE 2   
+
+  53          //        }else{
+  54          //            led_conut=0;
+  55          //        }
+  56          //    }
+  57          //    else{//other: Off
+  58          //      led_conut=0;
+  59          //      LED_OFF;
+  60          //    }
+  61          //}
+  62          
+  63          //void led_status_set(char state)
+  64          //{
+  65          //  ledStatus = state;
+  66          
+  67          //}
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   ----    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

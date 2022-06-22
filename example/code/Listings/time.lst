@@ -1,0 +1,103 @@
+C51 COMPILER V9.60.0.0   TIME                                                              06/22/2022 19:42:54 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE TIME
+OBJECT MODULE PLACED IN .\Objects\time.obj
+COMPILER INVOKED BY: D:\Keil_v5_c51\C51\BIN\C51.EXE Bsp\time\time.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Bsp;.\Bsp\disp_i2c
+                    -;.\Bsp\tm1650) DEBUG OBJECTEXTEND PRINT(.\Listings\time.lst) TABS(2) OBJECT(.\Objects\time.obj)
+
+line level    source
+
+   1          #include "STC8H.h"
+   2          #include "time.h"
+   3          #include "my_type.h"
+   4          
+   5          #define Timer1_Reload   (MAIN_Fosc / 1000)      //Timer 2 中断频率, 1000次/秒
+   6          
+   7          
+   8          
+   9          volatile   uint8_t ucCycle_Count_1ms = 0  ; /* 1ms计数循环变量 */
+  10          
+  11          
+  12          void timer1_init(void)
+  13          {
+  14   1              TR1 = 0;    //停止计数
+  15   1      
+  16   1          #if (Timer1_Reload < 64)    // 如果用户设置值不合适， 则不启动定时器
+                      #error "Timer1设置的中断过快!"
+              
+                  #elif ((Timer1_Reload/12) < 65536UL)    // 如果用户设置值不合适， 则不启动定时器
+  20   1              ET1 = 1;    //允许中断
+  21   1          //  PT1 = 1;    //高优先级中断
+  22   1              TMOD &= ~0x30;
+  23   1              TMOD |= (0 << 4);   //工作模式, 0: 16位自动重装, 1: 16位定时/计数, 2: 8位自动重�
+             -��
+  24   1          //  TMOD |=  0x40;  //对外计数或分频
+  25   1              TMOD &= ~0x40;  //定时
+  26   1          //  INT_CLKO |=  0x02;  //输出时钟
+  27   1              INTCLKO &= ~0x02;  //不输出时钟
+  28   1      
+  29   1              #if (Timer1_Reload < 65536UL)
+  30   1                  AUXR |=  0x40;  //1T mode
+  31   1                  TH1 = (u8)((65536UL - Timer1_Reload) / 256);
+  32   1                  TL1 = (u8)((65536UL - Timer1_Reload) % 256);
+  33   1              #else
+                          AUXR &= ~0x40;  //12T mode
+                          TH1 = (u8)((65536UL - Timer1_Reload/12) / 256);
+                          TL1 = (u8)((65536UL - Timer1_Reload/12) % 256);
+                      #endif
+  38   1      
+  39   1              TR1 = 1;    //开始运行
+  40   1      
+  41   1          #else
+                      #error "Timer1设置的中断过慢!"
+                  #endif
+  44   1      }
+  45          
+  46          //========================================================================
+  47          // 函数: void timer1_int (void) interrupt TIMER1_VECTOR
+  48          // 描述:  timer1中断函数.
+  49          // 参数: none.
+  50          // 返回: none.
+  51          // 版本: V1.0, 2015-1-12
+  52          //========================================================================
+  53          void timer1_interrupt (void) interrupt 3
+C51 COMPILER V9.60.0.0   TIME                                                              06/22/2022 19:42:54 PAGE 2   
+
+  54          {
+  55   1        //-----------主函数10ms计数实现-start----------
+  56   1         ucCycle_Count_1ms++;
+  57   1         if(ucCycle_Count_1ms >= 10) //10ms
+  58   1         {
+  59   2            ucCycle_Count_1ms = 0;
+  60   2            ucFlag.BIT.CYCLE_FLAG = SET;
+  61   2          }
+  62   1         //-----------主函数20ms计数实现-End----------
+  63   1         
+  64   1         //-------uart接收-------------
+  65   1      //   if(ucFlag.BIT.UART_REC){
+  66   1      //      uart_interval_count++;
+  67   1      //      if(uart_interval_count > 30){
+  68   1      //         uart_interval_count = 0;
+  69   1      //         ucFlag.BIT.UART_REC_OK = true;
+  70   1      //      }
+  71   1      //   }
+  72   1         
+  73   1         //TIM1_SR1 &=~0x01;  // 清除更新中断标记，这步不能漏掉，否则会连续进入中断程�
+             -��  
+  74   1      }
+  75          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     73    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      1    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

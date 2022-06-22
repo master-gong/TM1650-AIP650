@@ -1,0 +1,337 @@
+C51 COMPILER V9.60.0.0   TM1650                                                            03/20/2022 19:10:42 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE TM1650
+OBJECT MODULE PLACED IN .\Objects\tm1650.obj
+COMPILER INVOKED BY: D:\Keil_v5_c51\C51\BIN\C51.EXE Bsp\tm1650\tm1650.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Bsp;.\App\rtc;
+                    -.\Bsp\tm1650;.\Bsp\delay;.\Bsp\time;.\Bsp\iic;.\App\wifi;.\Bsp\uart;.\App\display;.\App\button;.\App\light_control;.\Bsp
+                    -\adc;.\Bsp\eeprom) DEBUG OBJECTEXTEND PRINT(.\Listings\tm1650.lst) TABS(2) OBJECT(.\Objects\tm1650.obj)
+
+line level    source
+
+   1          #include "tm1650.h"
+   2          //#include "delay.h"
+   3          #include "my_type.h"
+   4          #include "intrins.h"
+   5          
+   6          code char seg_code_1[28]={
+   7          0xF5,  /* 0:  0 */
+   8          0x05,  /* 1:  1 */
+   9          0xB3,  /* 2:  2 */
+  10          0x97,  /* 3:  3 */
+  11          0x47,  /* 4:  4 */
+  12          0xD6,  /* 5:  5 */
+  13          0xF6,  /* 6:  6 */
+  14          0x85,  /* 7:  7 */
+  15          0xF7,  /* 8:  8*/
+  16          0xD7,  /* 9:  9 */
+  17          0xE7,  /* 10: A */
+  18          0xF0,  /* 11: C */
+  19          0xF2,  /* 12: E */
+  20          0xE2,  /* 13: F */
+  21          0x67,  /* 14: H */
+  22          0x22,  /* 15: r */
+  23          0x70,  /* 16: L */
+  24          0x02,  /* 17: - 中- */
+  25          0x37,  /* 18: d */
+  26          0x75,  /* 19: U */
+  27          0x00,  /* 20：  */
+  28          0x10,  /* 21：_ 下- */
+  29          0x32,  /* 22：c */
+  30          0xE3,  /* 23：p */
+  31          0xC3,  /* 24：o 上o */
+  32          0x36,  /* 25：o 下o */
+  33          0x80,  /* 26：- 上- */
+  34          };
+  35          
+  36          code char seg_code_2[28]={
+  37          0xF5,  /* 0:  0 */
+  38          0x60,  /* 1:  1 */
+  39          0xB3,  /* 2:  2 */
+  40          0xF2,  /* 3:  3 */
+  41          0x66,  /* 4:  4 */
+  42          0xD6,  /* 5:  5 */
+  43          0xD7,  /* 6:  6 */
+  44          0x70,  /* 7:  7 */
+  45          0xF7,  /* 8:  8*/
+  46          0xF6,  /* 9:  9 */
+  47          0x77,  /* 10: A */
+  48          0x95,  /* 11: C */
+  49          0x97,  /* 12: E */
+  50          0x17,  /* 13: F */
+  51          0x67,  /* 14: H */
+  52          0x03,  /* 15: r */
+  53          0x85,  /* 16: L */
+C51 COMPILER V9.60.0.0   TM1650                                                            03/20/2022 19:10:42 PAGE 2   
+
+  54          0x02,  /* 17: - 中- */
+  55          0xE3,  /* 18: d */
+  56          0xE5,  /* 19: U */
+  57          0x00,  /* 20：  */
+  58          0x80,  /* 21：_ 下- */
+  59          0x83,  /* 22：c */
+  60          0x37,  /* 23：p */
+  61          0x36,  /* 24：o 上o */
+  62          0xC3,  /* 25：o 下o */
+  63          0x10,  /* 26：- 上- */
+  64          };
+  65          
+  66          uint8_t *p_seg_code=0;
+  67          
+  68          
+  69          
+  70          
+  71          
+  72          static void IIC_Init_TM1650(void)
+  73          {
+  74   1         SET_SCL_OUT_TM1650();
+  75   1         SET_SDA_OUT_TM1650(); 
+  76   1         SCL_TM1650  = 1;
+  77   1         SDA_TM1650  = 1;
+  78   1      }
+  79          
+  80          /***********************
+  81          函数功能：us延时
+  82          输入参数：无
+  83          输出参数：无
+  84          备    注：粗略延时
+  85          ***********************/
+  86          static void delay_us(uint8_t z)
+  87          { 
+  88   1         while(z--){
+  89   2           _nop_(); 
+  90   2           _nop_(); 
+  91   2         }
+  92   1      }
+  93          
+  94          /***********************
+  95          函数功能：ms延时
+  96          输入参数：无
+  97          输出参数：无
+  98          备    注：粗略延时
+  99          ***********************/
+ 100          static void delay_ms(unsigned int time)
+ 101          {
+ 102   1          unsigned int i;
+ 103   1          while(time--)  
+ 104   1          for(i=900;i>0;i--)
+ 105   1          delay_us(1); 
+ 106   1      }
+ 107          
+ 108          static void I2C_Start_TM1650(void)
+ 109          {
+ 110   1          // SDA 1->0 while SCL High
+ 111   1          //SCL高电平期间，SDA出现一个下降沿表示起始信号
+ 112   1          SET_SDA_OUT_TM1650();
+ 113   1          SDA_TM1650 = 1;       //数据线先保持为高，起始信号要该口的下降沿 
+ 114   1          delay_us(4);
+ 115   1          SCL_TM1650 = 1;       //时钟线保持为高            
+C51 COMPILER V9.60.0.0   TM1650                                                            03/20/2022 19:10:42 PAGE 3   
+
+ 116   1          delay_us(40);         //有一个大概5us的延时具体以器件而定            
+ 117   1          SDA_TM1650 = 0;       //数据线拉低出现下降沿           
+ 118   1          delay_us(4);          //延时 一小会，保证可靠的下降沿            
+ 119   1          SCL_TM1650 = 0;       //拉低时钟线，保证接下来数据线允许改变            
+ 120   1      }
+ 121          
+ 122          static void I2C_Stop_TM1650(void)
+ 123          {
+ 124   1          // SDA 0->1 while SCL High
+ 125   1          //SCL高电平期间，SDA产生一个上升沿 表示停止
+ 126   1          SET_SDA_OUT_TM1650();
+ 127   1          SCL_TM1650 = 0;
+ 128   1          delay_us(2);
+ 129   1          SDA_TM1650 = 0;   //保证数据线为低电平
+ 130   1          delay_us(40);
+ 131   1          SCL_TM1650 = 1;   //先保证时钟线为高电平
+ 132   1          delay_us(10);    //延时 以得到一个可靠的电平信号            
+ 133   1          SDA_TM1650 = 1;        //数据线出现上升沿           
+ 134   1          delay_us(40);    //延时 保证一个可靠的高电平           
+ 135   1      }
+ 136          
+ 137          static void IIC_Ack_TM1650(void)
+ 138          {
+ 139   1          //数据线一直保持为低电平，时钟线出现上升沿即为应答
+ 140   1       
+ 141   1      //    SET_SDA_OUT_TM1650();
+ 142   1      //    delay_us(10);
+ 143   1      //    SDA_TM1650 = 0;
+ 144   1      //    delay_us(10);
+ 145   1      //    SCL_TM1650 = 0;
+ 146   1      //    delay_us(10);
+ 147   1      //    SCL_TM1650 = 1;
+ 148   1      //    delay_us(10);
+ 149   1      //    //应答完成后 将时钟线拉低 允许数据修改
+ 150   1      //    SCL_TM1650 = 0;
+ 151   1        
+ 152   1          SCL_TM1650=0;  // TM1637 starts ACK (pulls DIO low)
+ 153   1          delay_us(5); 
+ 154   1          SDA_TM1650=1;
+ 155   1          delay_us(5); 
+ 156   1          SCL_TM1650=1; 
+ 157   1          delay_us(5); 
+ 158   1          SCL_TM1650=0;  // TM1637 ends ACK (releasing DIO)
+ 159   1          delay_us(5); 
+ 160   1      }
+ 161          static void IIC_WrByte_TM1650(uint8_t txd)
+ 162          {
+ 163   1          //定义一个计数变量
+ 164   1          uint8_t i;
+ 165   1          SET_SDA_OUT_TM1650();
+ 166   1          //将时钟线拉低允许数据改变
+ 167   1          // SCL = 0;
+ 168   1          //按位发送数据
+ 169   1          for(i = 0;i < 8; i ++)
+ 170   1          {
+ 171   2              delay_us(2);
+ 172   2              if((txd&0x80)>>7){ //0x80  1000 0000
+ 173   3                 SDA_TM1650=1;
+ 174   3              }else{
+ 175   3                 SDA_TM1650=0;
+ 176   3              }
+ 177   2              txd<<=1;    
+C51 COMPILER V9.60.0.0   TM1650                                                            03/20/2022 19:10:42 PAGE 4   
+
+ 178   2              delay_us(5);   
+ 179   2              SCL_TM1650=1;
+ 180   2              delay_us(10);  
+ 181   2              SCL_TM1650=0; 
+ 182   2              delay_us(10); 
+ 183   2          }
+ 184   1      }
+ 185           
+ 186           
+ 187          static void TM1650_Set(u8 add,u8 dat) //数码管显示
+ 188          {
+ 189   1        //写显存必须从高地址开始写
+ 190   1        I2C_Start_TM1650();
+ 191   1        IIC_WrByte_TM1650(add); //第一个显存地址
+ 192   1        IIC_Ack_TM1650();
+ 193   1        IIC_WrByte_TM1650(dat);
+ 194   1        IIC_Ack_TM1650();
+ 195   1        I2C_Stop_TM1650();
+ 196   1      }
+ 197          
+ 198          
+ 199          void init_tm1650(void)
+ 200          {
+ 201   1          IIC_Init_TM1650();
+ 202   1          delay_ms(10);        //需要延时一小段时间，否则开显示会无响应
+ 203   1          //TM1650_Set(0x48,0x01);     //初始化为5级灰度，开显示    
+ 204   1          //TM1650_Set(0x68,0x01); //数码管显
+ 205   1          //TM1650_Set(0x6A,0x02); //数码管显
+ 206   1      }
+ 207          
+ 208          //显示接口  
+ 209          void display_7seg(_disp_buff_st info)
+ 210          {
+ 211   1         uint8_t i;
+ 212   1         uint8_t data_buff[4], tem_value;
+ 213   1         if(disp_dir == 0xAA){ // 倒显示
+ 214   2             p_seg_code = (uint8_t*)seg_code_2;
+ 215   2         }else{   // 正显示
+ 216   2             p_seg_code = (uint8_t*)seg_code_1;
+ 217   2         }
+ 218   1        
+ 219   1         
+ 220   1         if(info.brightness == B_LEVEL_OFF){
+ 221   2             TM1650_Set(0x48,0x00);//亮度调节
+ 222   2         }else{
+ 223   2             TM1650_Set(0x48,((info.brightness << 4)&0x70)|0x01);//亮度调节
+ 224   2         }
+ 225   1       
+ 226   1      //   for(i=0;i<4;i++){
+ 227   1      //      /*if((info.grid_data[i]&0x80)==0x80){
+ 228   1      //         info.grid_data[i] &=~0x80;
+ 229   1      //         
+ 230   1      //         data[i] = p_seg_code[info.grid_data[i]]|0x08;
+ 231   1      //           
+ 232   1      //      }else{
+ 233   1      //         data[i] = p_seg_code[info.grid_data[i]];
+ 234   1      //      }*/
+ 235   1      //      data_buff[i] = p_seg_code[info.grid_data[i]];
+ 236   1      //   }
+ 237   1         
+ 238   1         if(disp_dir == 0xAA){ // 倒显示  
+ 239   2             data_buff[0] = p_seg_code[info.grid_data[3]];
+C51 COMPILER V9.60.0.0   TM1650                                                            03/20/2022 19:10:42 PAGE 5   
+
+ 240   2             data_buff[1] = p_seg_code[info.grid_data[2]];
+ 241   2             data_buff[2] = p_seg_code[info.grid_data[1]];
+ 242   2             data_buff[3] = p_seg_code[info.grid_data[0]];
+ 243   2      
+ 244   2         }else{
+ 245   2             data_buff[0] = p_seg_code[info.grid_data[0]];
+ 246   2             data_buff[1] = p_seg_code[info.grid_data[1]];
+ 247   2             data_buff[2] = p_seg_code[info.grid_data[2]];
+ 248   2             data_buff[3] = p_seg_code[info.grid_data[3]];
+ 249   2         } 
+ 250   1      //   if(left_right_mirror_images == 0xAA){
+ 251   1      //       for(i=0;i<4;i++){
+ 252   1      //         tem_value = data_buff[i];
+ 253   1      //         tem_value &=~ 0x65;
+ 254   1      //         if((data_buff[i]&0x40)==0x40){
+ 255   1      //             tem_value |= 0x01;
+ 256   1      //         }
+ 257   1      //         if((data_buff[i]&0x20)==0x20){
+ 258   1      //             tem_value |= 0x04;
+ 259   1      //         }
+ 260   1      //         if((data_buff[i]&0x01)==0x01){
+ 261   1      //             tem_value |= 0x40;
+ 262   1      //         }
+ 263   1      //         if((data_buff[i]&0x04)==0x04){
+ 264   1      //             tem_value |= 0x20;
+ 265   1      //         }
+ 266   1      //         data_buff[i] = tem_value; 
+ 267   1      //       }
+ 268   1      //   }
+ 269   1         if(up_down_mirror_images == 0xAA){ 
+ 270   2             for(i=0;i<4;i++){
+ 271   3               tem_value = data_buff[i];
+ 272   3               tem_value &=~ 0xF5;
+ 273   3               if((data_buff[i]&0x40)==0x40){
+ 274   4                   tem_value |= 0x20;
+ 275   4               }
+ 276   3               if((data_buff[i]&0x20)==0x20){
+ 277   4                   tem_value |= 0x40;
+ 278   4               }
+ 279   3               if((data_buff[i]&0x01)==0x01){
+ 280   4                   tem_value |= 0x04;
+ 281   4               }
+ 282   3               if((data_buff[i]&0x04)==0x04){
+ 283   4                   tem_value |= 0x01;
+ 284   4               }
+ 285   3               if((data_buff[i]&0x80)==0x80){
+ 286   4                   tem_value |= 0x10;
+ 287   4               }
+ 288   3               if((data_buff[i]&0x10)==0x10){
+ 289   4                   tem_value |= 0x80;
+ 290   4               }
+ 291   3               data_buff[i] = tem_value; 
+ 292   3             }
+ 293   2         }
+ 294   1         if(info.second){
+ 295   2             data_buff[1] |= 0x08;
+ 296   2         }
+ 297   1         TM1650_Set(0x68,data_buff[0]);
+ 298   1         TM1650_Set(0x6A,data_buff[1]);
+ 299   1         TM1650_Set(0x6C,data_buff[2]);
+ 300   1         TM1650_Set(0x6E,data_buff[3]);
+ 301   1      }
+C51 COMPILER V9.60.0.0   TM1650                                                            03/20/2022 19:10:42 PAGE 6   
+
+ 302           
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    584    ----
+   CONSTANT SIZE    =     56    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      3      12
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

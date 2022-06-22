@@ -1,0 +1,143 @@
+C51 COMPILER V9.60.0.0   USART                                                             03/20/2022 19:10:42 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE USART
+OBJECT MODULE PLACED IN .\Objects\USART.obj
+COMPILER INVOKED BY: D:\Keil_v5_c51\C51\BIN\C51.EXE Bsp\uart\USART.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Bsp;.\App\rtc;.\B
+                    -sp\tm1650;.\Bsp\delay;.\Bsp\time;.\Bsp\iic;.\App\wifi;.\Bsp\uart;.\App\display;.\App\button;.\App\light_control;.\Bsp\ad
+                    -c;.\Bsp\eeprom) DEBUG OBJECTEXTEND PRINT(.\Listings\USART.lst) TABS(2) OBJECT(.\Objects\USART.obj)
+
+line level    source
+
+   1          #include "STC8H.h"
+   2          #include "USART.h"
+   3          #include "my_type.h"
+   4          
+   5          #define Baudrate2   115200L
+   6          bit B_TX2_Busy; //发送忙标志
+   7          
+   8          
+   9          
+  10          
+  11          //========================================================================
+  12          // 函数: SetTimer2Baudraye(u16 dat)
+  13          // 描述: 设置Timer2做波特率发生器。
+  14          // 参数: dat: Timer2的重装值.
+  15          // 返回: none.
+  16          // 版本: VER1.0
+  17          // 日期: 2014-11-28
+  18          // 备注: 
+  19          //========================================================================
+  20          void SetTimer2Baudraye(u16 dat)  // 使用Timer2做波特率.
+  21          {
+  22   1          AUXR &= ~(1<<4);    //Timer stop
+  23   1          AUXR &= ~(1<<3);    //Timer2 set As Timer
+  24   1          AUXR |=  (1<<2);    //Timer2 set as 1T mode
+  25   1          T2H = dat / 256;
+  26   1          T2L = dat % 256;
+  27   1          IE2  &= ~(1<<2);    //禁止中断
+  28   1          AUXR |=  (1<<4);    //Timer run enable
+  29   1      }
+  30          
+  31          //========================================================================
+  32          // 函数: void   UART2_config(u8 brt)
+  33          // 描述: UART2初始化函数。
+  34          // 参数: brt: 选择波特率, 2: 使用Timer2做波特率, 其它值: 无效.
+  35          // 返回: none.
+  36          // 版本: VER1.0
+  37          // 日期: 2014-11-28
+  38          // 备注: 
+  39          //========================================================================
+  40          void UART2_config(void)    // 选择波特率, 2: 使用Timer2做波特率, 其它值: 无效.
+  41          {
+  42   1        
+  43   1          P1M1&=~0x03;
+  44   1          P1M0&=~0x03;
+  45   1        
+  46   1        
+  47   1          SetTimer2Baudraye(65536UL - (MAIN_Fosc / 4) / Baudrate2);
+  48   1          S2CON &= ~2;    //Clear Tx flag
+  49   1          S2CON &= ~1;    //Clear Rx flag
+  50   1          S2CON &= ~(1<<7);   // 8位数据, 1位起始位, 1位停止位, 无校验
+  51   1          IE2   |= 1;         //允许中断
+  52   1          S2CON |= (1<<4);    //允许接收
+  53   1          P_SW2 &= ~0x01; 
+C51 COMPILER V9.60.0.0   USART                                                             03/20/2022 19:10:42 PAGE 2   
+
+  54   1          //P_SW2 |= 1;         //UART2 switch to: 0: P1.0 P1.1,  1: P4.6 P4.7
+  55   1          B_TX2_Busy = 0;
+  56   1      }
+  57          
+  58          
+  59          
+  60          void uart_send_data(uint8_t *buff,uint8_t len)
+  61          {
+  62   1        while(len>0){
+  63   2           S2BUF = *buff;
+  64   2           B_TX2_Busy = 1;
+  65   2           while(B_TX2_Busy);
+  66   2           
+  67   2           len--;
+  68   2           buff++;
+  69   2        }
+  70   1      }
+  71          
+  72          
+  73          
+  74          
+  75           
+  76          
+  77          /**
+  78            * @brief  Deinitializes the UART peripheral.
+  79            * @param  None
+  80            * @retval None
+  81            */
+  82          void UART2_DeInit(void)
+  83          {
+  84   1          AUXR &= ~(1<<4);    //Timer run disble
+  85   1          IE2  &= ~1;         //禁止中断
+  86   1          S2CON &= ~ (1<<4);    //禁止接收
+  87   1          S2CON &= ~2;    //Clear Tx flag
+  88   1          S2CON &= ~1;    //Clear Rx flag
+  89   1          //P1M1|= 0x03;
+  90   1          //P1M0|=0x03;
+  91   1      }
+  92          
+  93          
+  94          
+  95          
+  96          //void UART2_int (void) interrupt 8
+  97          //{
+  98          //    if((S2CON & 1) != 0)
+  99          //    {
+ 100          //        S2CON &= ~1;    //Clear Rx flag
+ 101          ////        RX2_Buffer[RX2_Cnt] = S2BUF;
+ 102          ////        if(++RX2_Cnt >= UART2_BUF_LENGTH)   RX2_Cnt = 0;
+ 103          //    }
+ 104          
+ 105          //    if((S2CON & 2) != 0)
+ 106          //    {
+ 107          //        S2CON &= ~2;    //Clear Tx flag
+ 108          //        B_TX2_Busy = 0;
+ 109          //    }
+ 110          
+ 111          //}
+ 112          
+ 113          
+ 114          
+
+C51 COMPILER V9.60.0.0   USART                                                             03/20/2022 19:10:42 PAGE 3   
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    107    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,109 @@
+C51 COMPILER V9.60.0.0   ADC                                                               03/20/2022 19:10:43 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE ADC
+OBJECT MODULE PLACED IN .\Objects\adc.obj
+COMPILER INVOKED BY: D:\Keil_v5_c51\C51\BIN\C51.EXE Bsp\adc\adc.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Bsp;.\App\rtc;.\Bsp\
+                    -tm1650;.\Bsp\delay;.\Bsp\time;.\Bsp\iic;.\App\wifi;.\Bsp\uart;.\App\display;.\App\button;.\App\light_control;.\Bsp\adc;.
+                    -\Bsp\eeprom) DEBUG OBJECTEXTEND PRINT(.\Listings\adc.lst) TABS(2) OBJECT(.\Objects\adc.obj)
+
+line level    source
+
+   1          #include "STC8H.h"
+   2          #include "adc.h"
+   3          #include "my_type.h"
+   4          #include "intrins.h"
+   5          
+   6          static  uint8_t xdata adc_read_count=0;
+   7          
+   8          //uint16_t  temp_adc_value ;
+   9          
+  10          //uint16_t  light_control_adc_value ;
+  11          /*********************************************
+  12          函数功能：ADC IO初始化 
+  13          输入参数：无
+  14          输出参数：无
+  15          *********************************************/
+  16          void adc_io_config(void)
+  17          {
+  18   1         
+  19   1          P3M1 |= 0x20;
+  20   1          P3M0 &=~ 0x20;    //P35高阻输入
+  21   1        
+  22   1          P_SW2 |= 0x80;
+  23   1          ADCTIM = 0x3f;    //设置 ADC 内部时序，ADC采样时间建议设最大值
+  24   1          P_SW2 &= 0x7f;
+  25   1          ADCCFG = 0x2f;    //设置 ADC 时钟为系统时钟/2/16/16
+  26   1          ADC_CONTR = 0x80; //使能 ADC 模块
+  27   1      }
+  28          
+  29          
+  30          //========================================================================
+  31          // 函数: u16 Get_ADC12bitResult(u8 channel)
+  32          // 描述: 查询法读一次ADC结果.
+  33          // 参数: channel: 选择要转换的ADC.
+  34          // 返回: 12位ADC结果.
+  35          // 版本: V1.0, 2012-10-22
+  36          //========================================================================
+  37          u16 Get_ADC12bitResult(u8 channel)  //channel = 0~15
+  38          {
+  39   1          ADC_RES = 0;
+  40   1          ADC_RESL = 0;
+  41   1      
+  42   1          ADC_CONTR = (ADC_CONTR & 0xF0) | 0x40 | channel;    //启动 AD 转换
+  43   1          _nop_();
+  44   1          _nop_();
+  45   1          _nop_();
+  46   1          _nop_();
+  47   1      
+  48   1          while((ADC_CONTR & 0x20) == 0)  ;   //wait for ADC finish
+  49   1          ADC_CONTR &= ~0x20;     //清除ADC结束标志
+  50   1          return  (((u16)ADC_RES << 8) | ADC_RESL);
+  51   1      }
+  52          
+  53          
+C51 COMPILER V9.60.0.0   ADC                                                               03/20/2022 19:10:43 PAGE 2   
+
+  54          void adc_value_read(void)
+  55          {
+  56   1        uint16_t read_data;
+  57   1        adc_read_count++;
+  58   1        if(adc_read_count >= 100){//读取 光敏電阻
+  59   2           read_data =  Get_ADC12bitResult(13);  //参数0~15,查询方式做一次ADC, 返回值就是结果, == 4096 为错误
+  60   2           if(read_data < 4096){
+  61   3              light_control_adc_value =  read_data;
+  62   3           }
+  63   2           adc_read_count = 0;
+  64   2        } 
+  65   1      
+  66   1      }
+  67            /*adc_read_count++;
+  68            if(adc_read_count == 10){ //且通道轉換
+  69                 adc_channel_init(3);
+  70            }else if(adc_read_count == 50){ 
+  71                 //讀取溫度值
+  72                 temp_adc_value =  adc_data_read();
+  73                 temp_execute_flag = 1;
+  74            }else if(adc_read_count == 100){ //切亮度通道
+  75                 adc_channel_init(4);
+  76            }else if(adc_read_count == 150){ //读取 光敏電阻
+  77                 light_control_adc_value =  adc_data_read();
+  78            }else if(adc_read_count > 200){
+  79               adc_read_count = 0;
+  80            }*/
+  81            
+  82          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    101    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      1    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

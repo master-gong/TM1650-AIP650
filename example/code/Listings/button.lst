@@ -1,0 +1,137 @@
+C51 COMPILER V9.60.0.0   BUTTON                                                            06/11/2022 11:44:13 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE BUTTON
+OBJECT MODULE PLACED IN .\Objects\button.obj
+COMPILER INVOKED BY: D:\Keil_v5_c51\C51\BIN\C51.EXE App\button\button.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Bsp;.\App\rtc;
+                    -.\Bsp\tm1650;.\Bsp\delay;.\Bsp\time;.\Bsp\iic;.\App\wifi;.\Bsp\uart;.\App\display;.\App\button;.\App\light_control;.\Bsp
+                    -\adc;.\Bsp\eeprom;.\Bsp\disp_i2c\include;.\Bsp\tm1650\include;.\Bsp\tm1637\include;.\Bsp\pcf8576c\include) DEBUG OBJECTE
+                    -XTEND PRINT(.\Listings\button.lst) TABS(2) OBJECT(.\Objects\button.obj)
+
+line level    source
+
+   1          #include "STC8H.h"
+   2          #include "my_type.h"
+   3          #include "button.h"
+   4          //#include "TM1650.h"
+   5          
+   6          static  uint8_t xdata  button_down_conut=0;
+   7          static  uint8_t xdata  button_up_conut=0;
+   8          static  uint8_t xdata  button_press_conut=0;
+   9          
+  10          
+  11          extern uint8_t xdata brightness;
+  12          extern uint8_t xdata dispMode;
+  13          
+  14          
+  15          void button_port_init(void)
+  16          {
+  17   1          SET_BUTTON_SMART_PIN();
+  18   1          button_down_conut = 0;
+  19   1      
+  20   1        
+  21   1      //   while((BUTTON_SMART==0)){
+  22   1      //       button_down_conut++;
+  23   1      //       if(button_down_conut>=200){
+  24   1      //          button_down_conut = 0;
+  25   1      //          button_up_conut++;
+  26   1      //          if(button_up_conut>=200){
+  27   1      //             button_up_conut = 0;
+  28   1      //             button_press_conut++;
+  29   1      //             if(button_press_conut >= 10){
+  30   1      
+  31   1      //                break;
+  32   1      //             }
+  33   1      //          }
+  34   1      //       }
+  35   1      //   }
+  36   1         button_down_conut  =0;
+  37   1         button_up_conut    =0;
+  38   1         button_press_conut =0;
+  39   1      }
+  40          
+  41          
+  42          
+  43          void button_handle(void)
+  44          {
+  45   1      //  download_check_handle();
+  46   1      //-------------按键判断----------------------  
+  47   1          if(0 == BUTTON_SMART){
+  48   2              button_up_conut = 0;
+  49   2              if(button_down_conut<= 50){
+  50   3                  button_down_conut++;
+  51   3              }
+  52   2              if(button_down_conut == 2){ //100ms
+C51 COMPILER V9.60.0.0   BUTTON                                                            06/11/2022 11:44:13 PAGE 2   
+
+  53   3                  button_press_conut++;
+  54   3              }else if(button_down_conut == 50){ //2.5S
+  55   3                  button_value = BUTTON_PRESS_LONG;
+  56   3                  button_press_conut = 80;
+  57   3              }
+  58   2          }else{
+  59   2              button_down_conut = 0;
+  60   2              if(button_up_conut<= 6){
+  61   3                 button_up_conut++;
+  62   3              }
+  63   2              if(button_up_conut == 6){
+  64   3                  if(button_press_conut == 1){
+  65   4                      button_value = BUTTON_PRESS_SHORT;
+  66   4                  }else if(button_press_conut == 2){
+  67   4                      button_value = BUTTON_CONTINUOUS_2;
+  68   4                  }else if(button_press_conut == 3){
+  69   4                      button_value = BUTTON_CONTINUOUS_3;
+  70   4                  }
+  71   3                  button_press_conut = 0;
+  72   3             }
+  73   2         }
+  74   1      //-------------键值处理----------------------
+  75   1         if(button_value != BUTTON_NONE){
+  76   2            if(button_value == BUTTON_PRESS_LONG){   //长按 -- WIFI绑定
+  77   3      //         IAP_CONTR |= 0xE0;   
+  78   3      //         while(1);
+  79   3            }else if(button_value == BUTTON_PRESS_SHORT){   //短按1次
+  80   3              
+  81   3                brightness++;
+  82   3                if(brightness > 7){
+  83   4                   brightness = 0;
+  84   4                }
+  85   3               
+  86   3      
+  87   3            }else if(button_value == BUTTON_CONTINUOUS_2){      //短按2次 -- 校时
+  88   3      
+  89   3      
+  90   3            }else if(button_value == BUTTON_CONTINUOUS_3){  //短按3次
+  91   3                 dispMode++;
+  92   3                if(dispMode >=3){
+  93   4                    dispMode = 0;
+  94   4                }
+  95   3            }else if(button_value == BUTTON_CONTINUOUS_4){  //短按4次
+  96   3                
+  97   3      
+  98   3            }else if(button_value == BUTTON_CONTINUOUS_5){      //短按5次
+  99   3              
+ 100   3            }
+ 101   2            
+ 102   2            button_value = BUTTON_NONE;
+ 103   2         }
+ 104   1      
+ 105   1      }
+ 106          
+ 107          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    239    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      3    ----
+   PDATA SIZE       =   ----    ----
+C51 COMPILER V9.60.0.0   BUTTON                                                            06/11/2022 11:44:13 PAGE 3   
+
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

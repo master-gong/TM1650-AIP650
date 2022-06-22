@@ -1,0 +1,89 @@
+C51 COMPILER V9.60.0.0   DISP_MODE                                                         03/20/2022 19:10:41 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE DISP_MODE
+OBJECT MODULE PLACED IN .\Objects\disp_mode.obj
+COMPILER INVOKED BY: D:\Keil_v5_c51\C51\BIN\C51.EXE App\display\disp_mode.c OPTIMIZE(8,SPEED) BROWSE INCDIR(.\Bsp;.\App\
+                    -rtc;.\Bsp\tm1650;.\Bsp\delay;.\Bsp\time;.\Bsp\iic;.\App\wifi;.\Bsp\uart;.\App\display;.\App\button;.\App\light_control;.
+                    -\Bsp\adc;.\Bsp\eeprom) DEBUG OBJECTEXTEND PRINT(.\Listings\disp_mode.lst) TABS(2) OBJECT(.\Objects\disp_mode.obj)
+
+line level    source
+
+   1          
+   2          
+   3          #include "STC8H.h"
+   4          #include "my_type.h"
+   5          #include "tm1650.h"
+   6          
+   7          extern _disp_buff_st   xdata    disp_data;                  /* 显示数据 */
+   8          
+   9          void display_mode_set(_disp_mode_em mode)
+  10          {
+  11   1          disp_mode = mode;
+  12   1          disp_data.grid_data[0] = LED_SIGE_d;  //d
+  13   1          disp_data.grid_data[1] = LED_SIGE_P;  //p
+  14   1          disp_data.grid_data[2] = LED_SIGE_M_;  //-
+  15   1      
+  16   1          if(disp_mode > DISP_MODE_DP6)  disp_mode = DISP_MODE_DP1;
+  17   1          disp_data.grid_data[3] =  disp_mode%10 + 1;
+  18   1      
+  19   1      }
+  20          
+  21          
+  22          /*
+  23          void display_mode_all(void)
+  24          {
+  25             disp_mode = DISP_MODE_DP1;    // 全部显示
+  26             disp_data.grid_data[0] = LED_SIGE1_d;  //d
+  27             disp_data.grid_data[1] = LED_SIGE2_p;  //p
+  28             disp_data.grid_data[2] = LED_SIGE3_M_;  //-
+  29             disp_data.grid_data[3] = 1;   //1
+  30          
+  31          }
+  32          
+  33          
+  34          
+  35          void display_mode_time(void)
+  36          {
+  37             disp_mode = DISP_MODE_DP2;    // 只显示时间
+  38             disp_data.grid_data[0] = LED_SIGE1_d;  //d
+  39             disp_data.grid_data[1] = LED_SIGE2_p;  //p
+  40             disp_data.grid_data[2] = LED_SIGE3_M_;  //-
+  41             disp_data.grid_data[3] = 2;   //2
+  42          
+  43          }
+  44          
+  45          void display_mode_temp(void)
+  46          {
+  47             disp_mode = DISP_MODE_DP3;    // 只显示温度
+  48             disp_data.grid_data[0] = LED_SIGE1_d;  //d
+  49             disp_data.grid_data[1] = LED_SIGE2_p;  //p
+  50             disp_data.grid_data[2] = LED_SIGE3_M_;  //-
+  51             disp_data.grid_data[3] = 3;   //3
+  52          
+  53          }
+C51 COMPILER V9.60.0.0   DISP_MODE                                                         03/20/2022 19:10:41 PAGE 2   
+
+  54          */
+  55          void display_mode_exit(uint16_t time)
+  56          {
+  57   1         exit_display_mode_count++;
+  58   1         if(exit_display_mode_count > time){
+  59   2            work_status = DISP_STATE_NORMAL_DISP_MODE; //正常显示
+  60   2            storage_delay = 10*100;//10S后进行存储
+  61   2         }
+  62   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     94    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
